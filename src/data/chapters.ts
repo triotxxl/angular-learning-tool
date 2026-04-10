@@ -3609,4 +3609,914 @@ function Button4({ children }: { children: React.ReactNode }) {
       },
     ],
   },
+  {
+    id: 'debugging-react',
+    title: 'Abschnitt 7: Debugging React Apps',
+    slug: 'debugging-react',
+    shortDescription: 'Fehlermeldungen verstehen, Browser-Debugger nutzen, React Strict Mode und React DevTools.',
+    lessons: [
+      {
+        id: 'dbg-error-messages',
+        title: 'React Fehlermeldungen verstehen',
+        duration: '9 Min.',
+        explanation: `Wenn etwas in deiner React-App schiefläuft, bekommst du Fehlermeldungen an verschiedenen Stellen:
+
+**1. Terminal / Konsole (Build-Fehler)**:
+Fehler in der Syntax oder fehlende Importe zeigt dir Vite direkt beim Kompilieren. Die Meldung enthält **Dateiname und Zeilennummer** – folge dem Pfad.
+
+**2. Browser-Konsole (Laufzeitfehler)**:
+Fehler, die erst zur Laufzeit auftreten (z. B. \`Cannot read properties of undefined\`). React zeigt oft einen **Error Overlay** direkt im Browser mit Stack-Trace.
+
+**3. React-spezifische Warnungen**:
+React gibt gelbe Warnungen in der Konsole aus, z. B. wenn ein \`key\`-Prop fehlt oder State falsch aktualisiert wird.
+
+**Tipps zum Lesen von Fehlermeldungen**:
+- Lies die **erste Zeile** – sie enthält den Fehlertyp und eine Beschreibung.
+- Schau auf den **Component Stack** – er zeigt, welche Komponente den Fehler verursacht hat.
+- Wenn der Fehler kryptisch ist: Die Fehlermeldung googlen (oder in ChatGPT eingeben) ist völlig legitim.`,
+        codeExamples: [
+          {
+            title: 'Typische Fehler & Fixes',
+            js: `// ❌ Fehler: "X is not defined"
+// → Du hast vergessen, etwas zu importieren
+// Fix:
+import Header from './Header';
+
+// ❌ Fehler: "Cannot read properties of undefined (reading 'name')"
+// → Du greifst auf eine Property zu, die nicht existiert
+function UserCard({ user }) {
+  // Wenn user undefined ist → Crash!
+  return <h2>{user.name}</h2>;
+}
+
+// ✅ Fix 1: Optional Chaining
+function UserCard({ user }) {
+  return <h2>{user?.name ?? 'Unbekannt'}</h2>;
+}
+
+// ❌ Fehler: "Each child in a list should have a unique 'key' prop"
+// → Du renderst eine Liste ohne key
+const items = ['A', 'B', 'C'];
+// ❌ items.map(item => <li>{item}</li>)
+// ✅ items.map((item, i) => <li key={item}>{item}</li>)
+
+// ❌ Fehler: "Too many re-renders"
+// → Du rufst setState direkt beim Rendern auf
+function Bad() {
+  const [count, setCount] = useState(0);
+  // ❌ setCount(count + 1);  // Löst sofort Re-Render aus → Endlosschleife!
+  // ✅ Nur in Event-Handlern oder useEffect aufrufen
+  return <button onClick={() => setCount(c => c + 1)}>{count}</button>;
+}`,
+            ts: `// ❌ Fehler: "X is not defined"
+// Fix: Import hinzufügen
+import Header from './Header';
+
+// ❌ "Cannot read properties of undefined (reading 'name')"
+type User = { name: string };
+
+// ✅ Fix: Optional Chaining + Fallback
+function UserCard({ user }: { user?: User }) {
+  return <h2>{user?.name ?? 'Unbekannt'}</h2>;
+}
+
+// ❌ "Each child in a list should have a unique 'key' prop"
+const items: string[] = ['A', 'B', 'C'];
+// ✅ items.map(item => <li key={item}>{item}</li>)
+
+// ❌ "Too many re-renders"
+// ✅ setState nur in Event-Handlern oder useEffect aufrufen
+function Good(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+  return <button onClick={() => setCount(c => c + 1)}>{count}</button>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'dbg-debugger-devtools',
+        title: 'Browser Debugger & React DevTools',
+        duration: '11 Min.',
+        explanation: `Neben \`console.log\` gibt es mächtigere Werkzeuge zum Debuggen:
+
+**Browser Debugger (Chrome/Firefox DevTools)**:
+- **Sources-Tab**: Hier findest du deinen Quellcode. Setze **Breakpoints**, indem du auf die Zeilennummer klickst.
+- **Step Over / Step Into / Step Out**: Gehe Zeile für Zeile durch den Code.
+- **Watch Expressions**: Beobachte Variablenwerte in Echtzeit.
+- \`debugger;\`-Statement: Füge es direkt in den Code ein – der Browser pausiert dort automatisch.
+- **Conditional Breakpoints**: Rechtsklick auf Zeilennummer → "Add conditional breakpoint" – pausiert nur, wenn die Bedingung wahr ist.
+
+**React Developer Tools (Browser Extension)**:
+- Installiere die Extension für Chrome oder Firefox.
+- **Components-Tab**: Zeigt den Komponentenbaum an. Du kannst für jede Komponente **Props, State und Hooks** inspizieren und live bearbeiten.
+- **Profiler-Tab**: Misst, welche Komponenten wie oft und wie lange rendern – nützlich für Performance-Optimierung.
+- Du kannst im Components-Tab Komponenten suchen, State-Werte direkt ändern und so Szenarien testen, ohne den Code zu ändern.`,
+        codeExamples: [
+          {
+            title: 'Debugging-Techniken',
+            js: `import { useState } from 'react';
+
+function BuggyCounter() {
+  const [count, setCount] = useState(0);
+
+  function handleClick() {
+    // Technik 1: console.log für schnelles Debugging
+    console.log('Aktueller count:', count);
+
+    // Technik 2: debugger-Statement → Browser pausiert hier
+    debugger;
+
+    // Technik 3: console.trace → zeigt den Call Stack
+    console.trace('handleClick aufgerufen');
+
+    setCount(prev => prev + 1);
+  }
+
+  // Technik 4: Werte direkt im JSX anzeigen (temporär)
+  return (
+    <div>
+      <button onClick={handleClick}>Zähler: {count}</button>
+      {/* Temporäres Debug-Output: */}
+      <pre style={{ fontSize: 10, color: 'grey' }}>
+        Debug: {JSON.stringify({ count, isEven: count % 2 === 0 })}
+      </pre>
+    </div>
+  );
+}
+
+// Technik 5: Error Boundary (für Produktions-Fehler)
+// Fängt Fehler in Kindkomponenten ab, statt die ganze App crashen zu lassen
+// → Wird in einem späteren Kapitel erklärt`,
+            ts: `import { useState } from 'react';
+
+function BuggyCounter(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+
+  function handleClick(): void {
+    // console.log für schnelles Debugging
+    console.log('Aktueller count:', count);
+
+    // debugger-Statement → Browser pausiert hier
+    debugger;
+
+    // console.trace → zeigt den Call Stack
+    console.trace('handleClick aufgerufen');
+
+    setCount(prev => prev + 1);
+  }
+
+  return (
+    <div>
+      <button onClick={handleClick}>Zähler: {count}</button>
+      {/* Temporäres Debug-Output: */}
+      <pre style={{ fontSize: 10, color: 'grey' }}>
+        Debug: {JSON.stringify({ count, isEven: count % 2 === 0 })}
+      </pre>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'dbg-strict-mode',
+        title: 'React Strict Mode',
+        duration: '6 Min.',
+        explanation: `**\`<StrictMode>\`** ist ein Entwickler-Tool von React, das nur in der **Development-Umgebung** aktiv ist. In der Produktion hat es keinen Effekt.
+
+Was Strict Mode macht:
+- **Doppeltes Rendern**: Jede Komponente wird initial **zweimal** gerendert, um unsichere Seiteneffekte zu finden. Wenn du z. B. in einer Komponente direkt eine API aufrufst (ohne \`useEffect\`), fällt das hier auf.
+- **Doppeltes Ausführen von Effects**: \`useEffect\`-Callbacks werden beim Mounten zweimal aufgerufen (mount → cleanup → mount), um zu prüfen, ob dein Cleanup korrekt funktioniert.
+- **Veraltete APIs erkennen**: Warnt bei Nutzung von veralteten Lifecycle-Methoden oder Legacy-APIs.
+
+**Warum verhält sich meine App in Dev anders?**
+Wenn du \`console.log\` in einer Komponente hast und er **doppelt** erscheint, liegt das am Strict Mode – nicht an einem Bug. In Produktion passiert das nicht.
+
+**Best Practice**: Lass \`<StrictMode>\` immer aktiviert – es hilft, Probleme früh zu finden.`,
+        codeExamples: [
+          {
+            title: 'StrictMode aktivieren',
+            js: `// main.jsx – der Standardaufbau
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+
+// Was passiert dadurch?
+function MyComponent() {
+  console.log('Render!');
+  // In Dev: "Render!" erscheint ZWEIMAL
+  // In Produktion: nur einmal
+
+  return <p>Hallo Welt</p>;
+}`,
+            ts: `// main.tsx – der Standardaufbau
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+
+// Beispiel: Strict Mode findet unsichere Seiteneffekte
+function BadComponent(): JSX.Element {
+  // ❌ Seiteneffekt direkt beim Rendern (kein useEffect)
+  // Strict Mode rendert 2x → API wird 2x aufgerufen → Bug erkannt!
+  // fetch('/api/data').then(r => r.json());
+
+  // ✅ Richtig: in useEffect packen (kommt in einem späteren Kapitel)
+  // useEffect(() => {
+  //   fetch('/api/data').then(r => r.json());
+  // }, []);
+
+  return <p>Daten laden...</p>;
+}`,
+          },
+          {
+            title: 'Typisches Strict-Mode-Verhalten',
+            js: `import { useState } from 'react';
+
+function Counter() {
+  // In Dev mit StrictMode:
+  // 1. React rendert die Komponente
+  // 2. React verwirft das Ergebnis
+  // 3. React rendert nochmal → dieses Ergebnis wird verwendet
+  // → Stellt sicher, dass die Komponente "pure" ist
+
+  const [count, setCount] = useState(0);
+
+  // ❌ Das fällt auf, weil es beim 2. Render schiefgeht:
+  // let items = [];
+  // items.push('neuer Eintrag'); // Bei jedem Render wird gepusht!
+
+  // ✅ State verwenden:
+  const [items, setItems] = useState([]);
+
+  return (
+    <div>
+      <p>Zähler: {count}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+function Counter(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+
+  // Strict Mode ruft Render 2x auf → findet unreine Logik
+  // ✅ Kein Problem, wenn die Komponente pure ist:
+  const doubled = count * 2; // Abgeleiteter Wert – immer gleich bei gleichem count
+
+  return (
+    <div>
+      <p>Zähler: {count} (doppelt: {doubled})</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'refs-portals',
+    title: 'Abschnitt 8: Working with Refs & Portals',
+    slug: 'refs-portals',
+    shortDescription: 'useRef für DOM-Zugriff und Werte, Refs forwarden, useImperativeHandle, Modale und Portals.',
+    lessons: [
+      {
+        id: 'rp-useref-dom',
+        title: 'useRef – DOM-Elemente ansprechen',
+        duration: '8 Min.',
+        explanation: `Mit dem **\`useRef\`**-Hook kannst du eine **direkte Verbindung zu einem DOM-Element** herstellen. Das ist nützlich, wenn du:
+
+- Einem Input den Fokus geben willst
+- Die Scroll-Position lesen oder setzen musst
+- Maße eines Elements brauchst (\`getBoundingClientRect()\`)
+- Ein \`<dialog>\`-Element öffnen/schließen willst
+
+So funktioniert es:
+1. \`const inputRef = useRef(null)\` erstellt eine Ref.
+2. \`ref={inputRef}\` am JSX-Element verbindet die Ref mit dem DOM-Knoten.
+3. Über \`inputRef.current\` greifst du auf das echte DOM-Element zu.
+
+**Wichtig**: Greife auf \`ref.current\` erst **nach** dem Rendern zu (z. B. in Event-Handlern oder \`useEffect\`), nicht direkt im Render-Body.`,
+        codeExamples: [
+          {
+            title: 'Input fokussieren',
+            js: `import { useRef } from 'react';
+
+function SearchBar() {
+  const inputRef = useRef(null);
+
+  function handleClick() {
+    // .current ist das echte DOM-Element
+    inputRef.current.focus();
+  }
+
+  return (
+    <div>
+      <input ref={inputRef} type="text" placeholder="Suchen..." />
+      <button onClick={handleClick}>Fokus setzen</button>
+    </div>
+  );
+}`,
+            ts: `import { useRef } from 'react';
+
+function SearchBar(): JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleClick(): void {
+    inputRef.current?.focus();
+  }
+
+  return (
+    <div>
+      <input ref={inputRef} type="text" placeholder="Suchen..." />
+      <button onClick={handleClick}>Fokus setzen</button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Wert aus unkontrolliertem Input lesen',
+            js: `import { useRef } from 'react';
+
+function QuickForm() {
+  const nameRef = useRef(null);
+  const emailRef = useRef(null);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    // Werte direkt aus dem DOM lesen statt über State
+    const name = nameRef.current.value;
+    const email = emailRef.current.value;
+    console.log({ name, email });
+
+    // Formular zurücksetzen (DOM-Manipulation via Ref)
+    nameRef.current.value = '';
+    emailRef.current.value = '';
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input ref={nameRef} placeholder="Name" />
+      <input ref={emailRef} type="email" placeholder="E-Mail" />
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+            ts: `import { useRef, type FormEvent } from 'react';
+
+function QuickForm(): JSX.Element {
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>): void {
+    e.preventDefault();
+    const name = nameRef.current!.value;
+    const email = emailRef.current!.value;
+    console.log({ name, email });
+
+    nameRef.current!.value = '';
+    emailRef.current!.value = '';
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input ref={nameRef} placeholder="Name" />
+      <input ref={emailRef} type="email" placeholder="E-Mail" />
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rp-refs-vs-state',
+        title: 'Refs vs State & Refs für Werte',
+        duration: '14 Min.',
+        explanation: `**Refs und State haben unterschiedliche Aufgaben**. Die Entscheidung, was du wann nutzt:
+
+| | \`useState\` | \`useRef\` |
+|---|---|---|
+| Löst Re-Render aus? | ✅ Ja | ❌ Nein |
+| Wert sofort aktuell? | ❌ Nein (nächster Render) | ✅ Ja (\`.current\` direkt) |
+| Überlebt Re-Renders? | ✅ Ja | ✅ Ja |
+| Im JSX anzeigen? | ✅ Ja | ❌ Nicht sinnvoll |
+
+**Refs für Nicht-DOM-Werte**: \`useRef\` ist nicht nur für DOM-Elemente! Du kannst damit **beliebige Werte** speichern, die Re-Renders überleben sollen, aber selbst **keinen** Re-Render auslösen:
+- Timer-IDs (\`setTimeout\`, \`setInterval\`)
+- Vorherige Werte speichern
+- Zähler, die die UI nicht beeinflussen
+- Externe Library-Instanzen
+
+**Faustregel**: Wird der Wert in der UI angezeigt? → \`useState\`. Wird er nur intern gebraucht? → \`useRef\`.`,
+        codeExamples: [
+          {
+            title: 'Timer mit Ref verwalten',
+            js: `import { useState, useRef } from 'react';
+
+function Stopwatch() {
+  const [time, setTime] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+
+  // Timer-ID in Ref speichern – kein Re-Render nötig
+  const timerRef = useRef(null);
+
+  function handleStart() {
+    setIsRunning(true);
+    timerRef.current = setInterval(() => {
+      setTime(prev => prev + 10);
+    }, 10);
+  }
+
+  function handleStop() {
+    clearInterval(timerRef.current);
+    setIsRunning(false);
+  }
+
+  function handleReset() {
+    clearInterval(timerRef.current);
+    setTime(0);
+    setIsRunning(false);
+  }
+
+  const minutes = Math.floor(time / 60000);
+  const seconds = Math.floor((time % 60000) / 1000);
+  const ms = Math.floor((time % 1000) / 10);
+
+  return (
+    <div>
+      <p>
+        {String(minutes).padStart(2, '0')}:
+        {String(seconds).padStart(2, '0')}.
+        {String(ms).padStart(2, '0')}
+      </p>
+      {isRunning ? (
+        <button onClick={handleStop}>Stopp</button>
+      ) : (
+        <button onClick={handleStart}>Start</button>
+      )}
+      <button onClick={handleReset}>Reset</button>
+    </div>
+  );
+}`,
+            ts: `import { useState, useRef } from 'react';
+
+function Stopwatch(): JSX.Element {
+  const [time, setTime] = useState<number>(0);
+  const [isRunning, setIsRunning] = useState<boolean>(false);
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function handleStart(): void {
+    setIsRunning(true);
+    timerRef.current = setInterval(() => {
+      setTime(prev => prev + 10);
+    }, 10);
+  }
+
+  function handleStop(): void {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsRunning(false);
+  }
+
+  function handleReset(): void {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTime(0);
+    setIsRunning(false);
+  }
+
+  const minutes = Math.floor(time / 60000);
+  const seconds = Math.floor((time % 60000) / 1000);
+  const ms = Math.floor((time % 1000) / 10);
+
+  return (
+    <div>
+      <p>
+        {String(minutes).padStart(2, '0')}:
+        {String(seconds).padStart(2, '0')}.
+        {String(ms).padStart(2, '0')}
+      </p>
+      {isRunning ? (
+        <button onClick={handleStop}>Stopp</button>
+      ) : (
+        <button onClick={handleStart}>Start</button>
+      )}
+      <button onClick={handleReset}>Reset</button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Vorherigen Wert merken',
+            js: `import { useState, useRef, useEffect } from 'react';
+
+function CounterWithPrevious() {
+  const [count, setCount] = useState(0);
+  const prevCountRef = useRef(0);
+
+  useEffect(() => {
+    // Nach jedem Render den alten Wert speichern
+    prevCountRef.current = count;
+  });
+
+  return (
+    <div>
+      <p>Aktuell: {count} | Vorher: {prevCountRef.current}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+    </div>
+  );
+}`,
+            ts: `import { useState, useRef, useEffect } from 'react';
+
+function CounterWithPrevious(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+  const prevCountRef = useRef<number>(0);
+
+  useEffect(() => {
+    prevCountRef.current = count;
+  });
+
+  return (
+    <div>
+      <p>Aktuell: {count} | Vorher: {prevCountRef.current}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rp-forward-ref',
+        title: 'Refs forwarden & useImperativeHandle',
+        duration: '14 Min.',
+        explanation: `Wenn du eine **eigene Komponente** baust und von außen ein \`ref\` daran hängen willst, musst du die Ref **weiterleiten**. Seit React 19 geht das direkt über die Props – \`ref\` wird wie ein normales Prop behandelt.
+
+**Warum Forwarding?** Stell dir vor, du hast eine \`<Input />\`-Komponente und willst von außen \`inputRef.current.focus()\` aufrufen. Ohne Forwarding kommt die Ref nicht beim inneren \`<input>\` an.
+
+**\`useImperativeHandle\`** geht einen Schritt weiter: Statt das gesamte DOM-Element freizugeben, definierst du eine **eigene API** – du bestimmst, welche Methoden von außen aufrufbar sind. Das ist ein saubereres Pattern, weil die Elternkomponente nicht direkt am DOM herummanipuliert.
+
+Typischer Einsatz: Eine Modal-Komponente, die \`open()\` und \`close()\` nach außen anbietet.`,
+        codeExamples: [
+          {
+            title: 'Ref forwarden (React 19)',
+            js: `import { useRef } from 'react';
+
+// React 19: ref ist ein normales Prop
+function FancyInput({ ref, label, ...rest }) {
+  return (
+    <label>
+      {label}
+      <input ref={ref} className="fancy-input" {...rest} />
+    </label>
+  );
+}
+
+// Verwendung
+function Form() {
+  const inputRef = useRef(null);
+
+  return (
+    <div>
+      <FancyInput ref={inputRef} label="Name" />
+      <button onClick={() => inputRef.current.focus()}>
+        Fokus setzen
+      </button>
+    </div>
+  );
+}`,
+            ts: `import { useRef } from 'react';
+
+type FancyInputProps = {
+  ref?: React.Ref<HTMLInputElement>;
+  label: string;
+} & React.InputHTMLAttributes<HTMLInputElement>;
+
+function FancyInput({ ref, label, ...rest }: FancyInputProps) {
+  return (
+    <label>
+      {label}
+      <input ref={ref} className="fancy-input" {...rest} />
+    </label>
+  );
+}
+
+function Form(): JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div>
+      <FancyInput ref={inputRef} label="Name" />
+      <button onClick={() => inputRef.current?.focus()}>
+        Fokus setzen
+      </button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'useImperativeHandle – eigene API definieren',
+            js: `import { useRef, useImperativeHandle } from 'react';
+
+function ResultModal({ ref, title, children }) {
+  const dialogRef = useRef(null);
+
+  // Nur open() und close() nach außen freigeben
+  useImperativeHandle(ref, () => ({
+    open() {
+      dialogRef.current.showModal();
+    },
+    close() {
+      dialogRef.current.close();
+    },
+  }));
+
+  return (
+    <dialog ref={dialogRef}>
+      <h2>{title}</h2>
+      {children}
+      <form method="dialog">
+        <button>Schließen</button>
+      </form>
+    </dialog>
+  );
+}
+
+// Verwendung
+function App() {
+  const modalRef = useRef(null);
+
+  return (
+    <div>
+      <button onClick={() => modalRef.current.open()}>
+        Modal öffnen
+      </button>
+      <ResultModal ref={modalRef} title="Ergebnis">
+        <p>Du hast gewonnen!</p>
+      </ResultModal>
+    </div>
+  );
+}`,
+            ts: `import { useRef, useImperativeHandle, type ReactNode, type Ref } from 'react';
+
+// Die API, die nach außen sichtbar ist
+type ModalHandle = {
+  open: () => void;
+  close: () => void;
+};
+
+type ResultModalProps = {
+  ref?: Ref<ModalHandle>;
+  title: string;
+  children: ReactNode;
+};
+
+function ResultModal({ ref, title, children }: ResultModalProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    open() {
+      dialogRef.current?.showModal();
+    },
+    close() {
+      dialogRef.current?.close();
+    },
+  }));
+
+  return (
+    <dialog ref={dialogRef}>
+      <h2>{title}</h2>
+      {children}
+      <form method="dialog">
+        <button>Schließen</button>
+      </form>
+    </dialog>
+  );
+}
+
+function App(): JSX.Element {
+  const modalRef = useRef<ModalHandle>(null);
+
+  return (
+    <div>
+      <button onClick={() => modalRef.current?.open()}>
+        Modal öffnen
+      </button>
+      <ResultModal ref={modalRef} title="Ergebnis">
+        <p>Du hast gewonnen!</p>
+      </ResultModal>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rp-modals-portals',
+        title: 'Modale Dialoge & Portals',
+        duration: '10 Min.',
+        explanation: `**Modale Dialoge** sind ein häufiges UI-Pattern. Das native \`<dialog>\`-Element bietet eingebaute Funktionalität:
+- \`showModal()\` öffnet es als modalen Dialog mit Backdrop.
+- \`close()\` schließt es.
+- Die \`Escape\`-Taste schließt es automatisch.
+- \`<form method="dialog">\` schließt den Dialog beim Submit.
+
+**Problem**: Auch wenn ein Modal logisch zu einer bestimmten Komponente gehört, sollte es im DOM **ganz oben** liegen (z. B. direkt unter \`<body>\`). Sonst kann es von \`overflow: hidden\`, \`z-index\` oder \`transform\` eines Elternelements betroffen sein.
+
+**Portals** lösen dieses Problem: Mit \`createPortal(jsx, domNode)\` renderst du JSX an einer **anderen Stelle im DOM** – während die Komponente im React-Baum an ihrem logischen Platz bleibt. Events bubblen weiterhin durch den React-Baum, nicht den DOM-Baum.
+
+Typischer Einsatz: Modals, Tooltips, Notifications, Dropdown-Menüs.`,
+        codeExamples: [
+          {
+            title: 'Dialog mit ESC & Backdrop',
+            js: `import { useRef, useImperativeHandle, useEffect } from 'react';
+
+function Modal({ ref, title, children, onClose }) {
+  const dialogRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    open: () => dialogRef.current.showModal(),
+    close: () => dialogRef.current.close(),
+  }));
+
+  // ESC-Taste wird von <dialog> nativ unterstützt
+  // Das 'close'-Event feuert bei ESC und bei .close()
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    function handleClose() {
+      onClose?.();
+    }
+    dialog.addEventListener('close', handleClose);
+    return () => dialog.removeEventListener('close', handleClose);
+  }, [onClose]);
+
+  return (
+    <dialog ref={dialogRef} className="modal">
+      <h2>{title}</h2>
+      <div>{children}</div>
+      <form method="dialog">
+        <button>Schließen</button>
+      </form>
+    </dialog>
+  );
+}
+
+// CSS für den Backdrop:
+// dialog::backdrop {
+//   background: rgba(0, 0, 0, 0.5);
+//   backdrop-filter: blur(4px);
+// }`,
+            ts: `import { useRef, useImperativeHandle, useEffect, type Ref, type ReactNode } from 'react';
+
+type ModalHandle = { open: () => void; close: () => void };
+
+type ModalProps = {
+  ref?: Ref<ModalHandle>;
+  title: string;
+  children: ReactNode;
+  onClose?: () => void;
+};
+
+function Modal({ ref, title, children, onClose }: ModalProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    open: () => dialogRef.current?.showModal(),
+    close: () => dialogRef.current?.close(),
+  }));
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    function handleClose() { onClose?.(); }
+    dialog.addEventListener('close', handleClose);
+    return () => dialog.removeEventListener('close', handleClose);
+  }, [onClose]);
+
+  return (
+    <dialog ref={dialogRef} className="modal">
+      <h2>{title}</h2>
+      <div>{children}</div>
+      <form method="dialog">
+        <button>Schließen</button>
+      </form>
+    </dialog>
+  );
+}`,
+          },
+          {
+            title: 'Portal – an anderer Stelle rendern',
+            js: `import { createPortal } from 'react-dom';
+import { useRef, useImperativeHandle } from 'react';
+
+function Modal({ ref, title, children }) {
+  const dialogRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    open: () => dialogRef.current.showModal(),
+    close: () => dialogRef.current.close(),
+  }));
+
+  // Portal: Das <dialog> wird unter #modal-root gerendert,
+  // NICHT dort, wo <Modal /> im JSX steht
+  return createPortal(
+    <dialog ref={dialogRef} className="modal">
+      <h2>{title}</h2>
+      {children}
+      <form method="dialog">
+        <button>Schließen</button>
+      </form>
+    </dialog>,
+    document.getElementById('modal-root')
+  );
+}
+
+// In index.html brauchst du:
+// <body>
+//   <div id="root"></div>
+//   <div id="modal-root"></div>
+// </body>
+
+// Verwendung – logisch an Ort und Stelle, DOM-technisch oben
+function App() {
+  const modalRef = useRef(null);
+
+  return (
+    <div>
+      <h1>Meine App</h1>
+      <button onClick={() => modalRef.current.open()}>
+        Ergebnis anzeigen
+      </button>
+      {/* Liegt im React-Baum hier, im DOM aber unter #modal-root */}
+      <Modal ref={modalRef} title="Ergebnis">
+        <p>Gewonnen! 🎉</p>
+      </Modal>
+    </div>
+  );
+}`,
+            ts: `import { createPortal } from 'react-dom';
+import { useRef, useImperativeHandle, type Ref, type ReactNode } from 'react';
+
+type ModalHandle = { open: () => void; close: () => void };
+
+type ModalProps = {
+  ref?: Ref<ModalHandle>;
+  title: string;
+  children: ReactNode;
+};
+
+function Modal({ ref, title, children }: ModalProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    open: () => dialogRef.current?.showModal(),
+    close: () => dialogRef.current?.close(),
+  }));
+
+  return createPortal(
+    <dialog ref={dialogRef} className="modal">
+      <h2>{title}</h2>
+      {children}
+      <form method="dialog">
+        <button>Schließen</button>
+      </form>
+    </dialog>,
+    document.getElementById('modal-root')!
+  );
+}
+
+function App(): JSX.Element {
+  const modalRef = useRef<ModalHandle>(null);
+
+  return (
+    <div>
+      <h1>Meine App</h1>
+      <button onClick={() => modalRef.current?.open()}>
+        Ergebnis anzeigen
+      </button>
+      <Modal ref={modalRef} title="Ergebnis">
+        <p>Gewonnen! 🎉</p>
+      </Modal>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
 ]

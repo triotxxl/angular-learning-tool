@@ -33,7 +33,12 @@ function App() {
                 className={`docs-sidebar__chapter ${openChapters[chapter.id] ? "is-open" : ""}`}
                 onClick={() => toggleChapter(chapter.id)}
               >
-                <span>{chapter.title}</span>
+                <span className="docs-sidebar__chapter-label">
+                  <span className="docs-sidebar__chapter-num">
+                    {chapter.title.match(/\d+/)?.[0]}
+                  </span>
+                  <span>{chapter.title.replace(/^Abschnitt\s*\d+:\s*/, '')}</span>
+                </span>
                 <svg
                   className="docs-sidebar__chevron"
                   width="16"

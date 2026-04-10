@@ -55,6 +55,7 @@
   top: 56px;
   height: calc(100vh - 56px);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 20px 16px;
   border-right: 1px solid var(--color-border);
   background: rgba(18, 17, 16, 0.5);
@@ -107,6 +108,28 @@
   cursor: pointer;
   transition: background 140ms ease;
   text-align: left;
+
+  .docs-sidebar__chapter-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .docs-sidebar__chapter-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: #7c3aed;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    line-height: 1;
+  }
 
   &:hover {
     background: var(--color-surface-hover);
