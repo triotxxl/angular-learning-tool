@@ -1009,4 +1009,1043 @@ const mitSpread: number[] = [...zahlen, 6, 7];`,
       },
     ],
   },
+  {
+    id: 'react-essentials',
+    title: 'Abschnitt 3: React Essentials',
+    slug: 'react-essentials',
+    shortDescription: 'Components, JSX, Props, State und Events – die Kernkonzepte von React.',
+    lessons: [
+      {
+        id: 're-components-jsx',
+        title: 'Komponenten & JSX',
+        duration: '15 Min.',
+        explanation: `React-Apps bestehen aus **Komponenten**. Eine Komponente ist eine Funktion, die JSX zurückgibt – eine HTML-ähnliche Syntax direkt in JavaScript.
+
+Regeln für Komponenten:
+- Der Funktionsname beginnt **immer mit Großbuchstabe** (\`App\`, \`Header\`, nicht \`app\`).
+- Eine Komponente gibt **genau ein Wurzelelement** zurück (oder ein Fragment \`<>...</>\`).
+- Dateiendung: \`.jsx\` oder \`.tsx\` (TypeScript).
+
+JSX ist **kein HTML** – es wird von React in \`React.createElement()\`-Aufrufe umgewandelt. Deshalb gelten ein paar Unterschiede:
+- \`class\` → \`className\`
+- \`for\` → \`htmlFor\`
+- Selbstschließende Tags brauchen immer \`/\`: \`<img />\`, \`<br />\`
+
+React baut intern einen **Component Tree** auf: Deine Root-Komponente (\`<App />\`) rendert Kind-Komponenten, die wiederum eigene Kinder haben.`,
+        codeExamples: [
+          {
+            title: 'Erste eigene Komponente',
+            js: `// Header.jsx
+function Header() {
+  return (
+    <header>
+      <h1>Meine React App</h1>
+      <p>Willkommen!</p>
+    </header>
+  );
+}
+
+export default Header;
+
+// App.jsx
+import Header from './Header';
+
+function App() {
+  return (
+    <div>
+      <Header />
+      <main>Inhalt hier...</main>
+    </div>
+  );
+}
+
+export default App;`,
+            ts: `// Header.tsx
+function Header(): JSX.Element {
+  return (
+    <header>
+      <h1>Meine React App</h1>
+      <p>Willkommen!</p>
+    </header>
+  );
+}
+
+export default Header;
+
+// App.tsx
+import Header from './Header';
+
+function App(): JSX.Element {
+  return (
+    <div>
+      <Header />
+      <main>Inhalt hier...</main>
+    </div>
+  );
+}
+
+export default App;`,
+          },
+          {
+            title: 'Fragment statt Wrapper-div',
+            js: `// ❌ Unnötiges div
+function Card() {
+  return (
+    <div>
+      <h2>Titel</h2>
+      <p>Text</p>
+    </div>
+  );
+}
+
+// ✅ Fragment – kein Extra-Element im DOM
+function Card() {
+  return (
+    <>
+      <h2>Titel</h2>
+      <p>Text</p>
+    </>
+  );
+}`,
+            ts: `// ✅ Fragment – kein Extra-Element im DOM
+function Card(): JSX.Element {
+  return (
+    <>
+      <h2>Titel</h2>
+      <p>Text</p>
+    </>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-dynamic-values',
+        title: 'Dynamische Werte & Attribute',
+        duration: '10 Min.',
+        explanation: `In JSX kannst du mit **geschweiften Klammern \`{}\`** JavaScript-Ausdrücke einbetten. Das gilt für:
+
+- **Textinhalt**: \`<p>{userName}</p>\`
+- **Attribute**: \`<img src={imageUrl} />\`
+- **Berechnungen**: \`<p>{preis * 1.19}</p>\`
+- **Funktionsaufrufe**: \`<p>{formatDate(new Date())}</p>\`
+
+Für Bilder in React-Projekten (mit Vite/Webpack): Nutze \`import\`, damit der Bundler den Pfad korrekt auflöst.`,
+        codeExamples: [
+          {
+            title: 'Dynamischer Content',
+            js: `const user = { name: 'Max', role: 'Admin' };
+
+function UserBadge() {
+  const formattedDate = new Date().toLocaleDateString('de-DE');
+
+  return (
+    <div>
+      <h2>{user.name}</h2>
+      <p>Rolle: {user.role}</p>
+      <p>Heute ist der {formattedDate}</p>
+      <p>Berechnung: {2 + 3}</p>
+    </div>
+  );
+}`,
+            ts: `type User = { name: string; role: string };
+const user: User = { name: 'Max', role: 'Admin' };
+
+function UserBadge(): JSX.Element {
+  const formattedDate: string = new Date().toLocaleDateString('de-DE');
+
+  return (
+    <div>
+      <h2>{user.name}</h2>
+      <p>Rolle: {user.role}</p>
+      <p>Heute ist der {formattedDate}</p>
+      <p>Berechnung: {2 + 3}</p>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Bilder importieren & dynamische Attribute',
+            js: `import reactLogo from './assets/react.svg';
+
+function Logo() {
+  const altText = 'React Logo';
+
+  return (
+    <img
+      src={reactLogo}
+      alt={altText}
+      className="logo"
+      style={{ width: 80, height: 80 }}
+    />
+  );
+}`,
+            ts: `import reactLogo from './assets/react.svg';
+
+function Logo(): JSX.Element {
+  const altText: string = 'React Logo';
+
+  return (
+    <img
+      src={reactLogo}
+      alt={altText}
+      className="logo"
+      style={{ width: 80, height: 80 }}
+    />
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-props',
+        title: 'Props – Daten an Komponenten übergeben',
+        duration: '15 Min.',
+        explanation: `**Props** (Properties) sind der Mechanismus, mit dem du Daten von einer Eltern- an eine Kind-Komponente übergibst. Props sind **read-only** – eine Komponente darf ihre eigenen Props nicht verändern.
+
+Wichtige Konzepte:
+- Props werden wie HTML-Attribute übergeben: \`<Card title="Hallo" count={5} />\`
+- In der Komponente empfängst du sie als Objekt – idealerweise direkt mit **Destructuring**.
+- Du kannst **jeden Wert** als Prop übergeben: Strings, Zahlen, Arrays, Objekte, Funktionen, sogar andere Komponenten.
+- **Spread-Syntax**: Mit \`{...props}\` kannst du ein ganzes Objekt als Props verteilen.
+- **Default-Werte**: Mit Destructuring-Defaults oder \`defaultProps\`.`,
+        codeExamples: [
+          {
+            title: 'Grundlagen: Props mit Destructuring',
+            js: `function CourseCard({ title, description, price }) {
+  return (
+    <article className="card">
+      <h2>{title}</h2>
+      <p>{description}</p>
+      <span className="price">{price} €</span>
+    </article>
+  );
+}
+
+// Verwendung
+function App() {
+  return (
+    <div>
+      <CourseCard
+        title="React Kurs"
+        description="Lerne React von Grund auf"
+        price={49}
+      />
+      <CourseCard
+        title="TypeScript Kurs"
+        description="TypeScript für React-Entwickler"
+        price={39}
+      />
+    </div>
+  );
+}`,
+            ts: `type CourseCardProps = {
+  title: string;
+  description: string;
+  price: number;
+};
+
+function CourseCard({ title, description, price }: CourseCardProps) {
+  return (
+    <article className="card">
+      <h2>{title}</h2>
+      <p>{description}</p>
+      <span className="price">{price} €</span>
+    </article>
+  );
+}
+
+// Verwendung
+function App(): JSX.Element {
+  return (
+    <div>
+      <CourseCard
+        title="React Kurs"
+        description="Lerne React von Grund auf"
+        price={49}
+      />
+      <CourseCard
+        title="TypeScript Kurs"
+        description="TypeScript für React-Entwickler"
+        price={39}
+      />
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Spread-Props & Default-Werte',
+            js: `function Button({ label, variant = 'primary', ...rest }) {
+  return (
+    <button className={'btn btn--' + variant} {...rest}>
+      {label}
+    </button>
+  );
+}
+
+// Spread: Objekt als Props verteilen
+const btnConfig = { label: 'Klick mich', onClick: () => alert('Hi!') };
+
+function App() {
+  return (
+    <div>
+      <Button {...btnConfig} />
+      <Button label="Sekundär" variant="secondary" />
+    </div>
+  );
+}`,
+            ts: `type ButtonProps = {
+  label: string;
+  variant?: 'primary' | 'secondary';
+} & React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+function Button({ label, variant = 'primary', ...rest }: ButtonProps) {
+  return (
+    <button className={'btn btn--' + variant} {...rest}>
+      {label}
+    </button>
+  );
+}
+
+const btnConfig = { label: 'Klick mich', onClick: () => alert('Hi!') };
+
+function App(): JSX.Element {
+  return (
+    <div>
+      <Button {...btnConfig} />
+      <Button label="Sekundär" variant="secondary" />
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-children-composition',
+        title: 'children & Komposition',
+        duration: '8 Min.',
+        explanation: `Das spezielle **\`children\`-Prop** enthält alles, was du **zwischen** die öffnenden und schließenden Tags einer Komponente schreibst. Das ist das Fundament für **Komposition** – du baust flexible Wrapper-Komponenten, die beliebigen Inhalt aufnehmen.
+
+Typische Anwendungen:
+- **Layout-Wrapper**: \`<Card>...</Card>\`, \`<Modal>...</Modal>\`
+- **Wiederverwendbare Container**: Die Struktur kommt von der Wrapper-Komponente, der Inhalt von außen.
+
+Das ist mächtiger als Vererbung – React bevorzugt **Komposition über Vererbung**.`,
+        codeExamples: [
+          {
+            title: 'Wrapper-Komponente mit children',
+            js: `function Card({ children, title }) {
+  return (
+    <article className="card">
+      <h2>{title}</h2>
+      <div className="card__body">
+        {children}
+      </div>
+    </article>
+  );
+}
+
+function App() {
+  return (
+    <Card title="Willkommen">
+      <p>Das hier ist der Inhalt der Karte.</p>
+      <button>Mehr erfahren</button>
+    </Card>
+  );
+}`,
+            ts: `import { type ReactNode } from 'react';
+
+type CardProps = {
+  title: string;
+  children: ReactNode;
+};
+
+function Card({ children, title }: CardProps) {
+  return (
+    <article className="card">
+      <h2>{title}</h2>
+      <div className="card__body">
+        {children}
+      </div>
+    </article>
+  );
+}
+
+function App(): JSX.Element {
+  return (
+    <Card title="Willkommen">
+      <p>Das hier ist der Inhalt der Karte.</p>
+      <button>Mehr erfahren</button>
+    </Card>
+  );
+}`,
+          },
+          {
+            title: 'Tabs als Kompositions-Pattern',
+            js: `function TabPanel({ children, isActive }) {
+  if (!isActive) return null;
+  return <div className="tab-panel">{children}</div>;
+}
+
+function App() {
+  const [tab, setTab] = useState(0);
+
+  return (
+    <div>
+      <button onClick={() => setTab(0)}>Info</button>
+      <button onClick={() => setTab(1)}>Details</button>
+
+      <TabPanel isActive={tab === 0}>
+        <p>Allgemeine Informationen</p>
+      </TabPanel>
+      <TabPanel isActive={tab === 1}>
+        <p>Detaillierte Beschreibung</p>
+      </TabPanel>
+    </div>
+  );
+}`,
+            ts: `import { type ReactNode } from 'react';
+
+type TabPanelProps = {
+  children: ReactNode;
+  isActive: boolean;
+};
+
+function TabPanel({ children, isActive }: TabPanelProps) {
+  if (!isActive) return null;
+  return <div className="tab-panel">{children}</div>;
+}
+
+function App(): JSX.Element {
+  const [tab, setTab] = useState<number>(0);
+
+  return (
+    <div>
+      <button onClick={() => setTab(0)}>Info</button>
+      <button onClick={() => setTab(1)}>Details</button>
+
+      <TabPanel isActive={tab === 0}>
+        <p>Allgemeine Informationen</p>
+      </TabPanel>
+      <TabPanel isActive={tab === 1}>
+        <p>Detaillierte Beschreibung</p>
+      </TabPanel>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-events',
+        title: 'Events & Event-Handling',
+        duration: '12 Min.',
+        explanation: `In React reagierst du auf Benutzerinteraktionen über **Event-Handler**. Statt \`addEventListener\` (Vanilla JS) übergibst du Funktionen direkt als Props:
+
+- \`onClick\`, \`onChange\`, \`onSubmit\`, \`onMouseEnter\`, usw.
+- Du übergibst eine **Funktionsreferenz**, keinen Funktionsaufruf: \`onClick={handleClick}\` – nicht \`onClick={handleClick()}\`!
+- Für **zusätzliche Argumente** nutzt du eine Arrow Function: \`onClick={() => handleSelect(id)}\`.
+- Event-Handler-Funktionen erhalten automatisch das **Event-Objekt** als erstes Argument.
+- Funktionen als Props übergeben: Eine Eltern-Komponente übergibt einen Handler an das Kind – so fließen Daten **nach oben** (Lifting State Up).`,
+        codeExamples: [
+          {
+            title: 'Click-Events & Argumente',
+            js: `function App() {
+  function handleClick() {
+    console.log('Button geklickt!');
+  }
+
+  function handleSelect(topic) {
+    console.log('Ausgewählt:', topic);
+  }
+
+  return (
+    <div>
+      {/* Einfacher Handler */}
+      <button onClick={handleClick}>Klick mich</button>
+
+      {/* Handler mit Argument */}
+      <button onClick={() => handleSelect('React')}>React</button>
+      <button onClick={() => handleSelect('Vue')}>Vue</button>
+    </div>
+  );
+}`,
+            ts: `function App(): JSX.Element {
+  function handleClick(): void {
+    console.log('Button geklickt!');
+  }
+
+  function handleSelect(topic: string): void {
+    console.log('Ausgewählt:', topic);
+  }
+
+  return (
+    <div>
+      <button onClick={handleClick}>Klick mich</button>
+      <button onClick={() => handleSelect('React')}>React</button>
+      <button onClick={() => handleSelect('Vue')}>Vue</button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Funktionen als Props übergeben (Kind → Eltern)',
+            js: `function TabButton({ children, onSelect }) {
+  return (
+    <button onClick={onSelect}>
+      {children}
+    </button>
+  );
+}
+
+function App() {
+  function handleSelect(thema) {
+    console.log(thema + ' wurde gewählt');
+  }
+
+  return (
+    <div>
+      <TabButton onSelect={() => handleSelect('Components')}>
+        Components
+      </TabButton>
+      <TabButton onSelect={() => handleSelect('Props')}>
+        Props
+      </TabButton>
+    </div>
+  );
+}`,
+            ts: `type TabButtonProps = {
+  children: React.ReactNode;
+  onSelect: () => void;
+};
+
+function TabButton({ children, onSelect }: TabButtonProps) {
+  return (
+    <button onClick={onSelect}>
+      {children}
+    </button>
+  );
+}
+
+function App(): JSX.Element {
+  function handleSelect(thema: string): void {
+    console.log(thema + ' wurde gewählt');
+  }
+
+  return (
+    <div>
+      <TabButton onSelect={() => handleSelect('Components')}>
+        Components
+      </TabButton>
+      <TabButton onSelect={() => handleSelect('Props')}>
+        Props
+      </TabButton>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-state',
+        title: 'State & useState',
+        duration: '15 Min.',
+        explanation: `**State** ist Daten, die sich über die Zeit ändern und dazu führen, dass React die UI neu rendert. Das ist der zentrale Unterschied zu normalen Variablen:
+
+- Eine **normale Variable** (\`let x = 0\`) triggert kein Re-Render – die UI bleibt stehen.
+- **\`useState\`** gibt dir eine State-Variable + eine Setter-Funktion. Wenn du den Setter aufrufst, rendert React die Komponente **neu**.
+
+Regeln für Hooks:
+- Nur **auf Top-Level** der Komponente aufrufen – nicht in \`if\`, \`for\` oder verschachtelten Funktionen.
+- Nur in **React-Funktionskomponenten** oder eigenen Hooks aufrufen.
+
+Du kannst **abgeleitete Werte** (Derived State) direkt berechnen statt in eigenem State zu speichern – mache keinen State, wenn es eine Berechnung tut.`,
+        codeExamples: [
+          {
+            title: 'Warum normale Variablen nicht reichen',
+            js: `// ❌ Das funktioniert NICHT – kein Re-Render!
+function Counter() {
+  let count = 0;
+
+  function handleClick() {
+    count++;
+    console.log(count); // Zählt hoch...
+    // ...aber die UI zeigt immer 0
+  }
+
+  return <button onClick={handleClick}>Zähler: {count}</button>;
+}`,
+            ts: `// ❌ Das funktioniert NICHT – kein Re-Render!
+function Counter(): JSX.Element {
+  let count: number = 0;
+
+  function handleClick(): void {
+    count++;
+    // UI zeigt immer 0 – React weiß nichts von der Änderung
+  }
+
+  return <button onClick={handleClick}>Zähler: {count}</button>;
+}`,
+          },
+          {
+            title: 'useState richtig einsetzen',
+            js: `import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  function handleIncrement() {
+    setCount(count + 1);
+    // Oder mit Updater-Funktion (sicherer bei schnellen Klicks):
+    // setCount(prev => prev + 1);
+  }
+
+  // Abgeleiteter Wert – kein eigener State nötig!
+  const isEven = count % 2 === 0;
+
+  return (
+    <div>
+      <p>Zähler: {count}</p>
+      <p>{isEven ? 'Gerade' : 'Ungerade'}</p>
+      <button onClick={handleIncrement}>+1</button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+function Counter(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+
+  function handleIncrement(): void {
+    setCount(prev => prev + 1);
+  }
+
+  // Abgeleiteter Wert – kein eigener State nötig!
+  const isEven: boolean = count % 2 === 0;
+
+  return (
+    <div>
+      <p>Zähler: {count}</p>
+      <p>{isEven ? 'Gerade' : 'Ungerade'}</p>
+      <button onClick={handleIncrement}>+1</button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'State mit Objekten (Spread nicht vergessen!)',
+            js: `import { useState } from 'react';
+
+function UserForm() {
+  const [user, setUser] = useState({
+    name: '',
+    email: '',
+  });
+
+  function handleChange(field, value) {
+    setUser(prev => ({
+      ...prev,        // alte Werte behalten
+      [field]: value,  // nur ein Feld überschreiben
+    }));
+  }
+
+  return (
+    <form>
+      <input
+        value={user.name}
+        onChange={e => handleChange('name', e.target.value)}
+        placeholder="Name"
+      />
+      <input
+        value={user.email}
+        onChange={e => handleChange('email', e.target.value)}
+        placeholder="E-Mail"
+      />
+      <p>Hallo {user.name || '...'} ({user.email || '...'})</p>
+    </form>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+type UserData = { name: string; email: string };
+
+function UserForm(): JSX.Element {
+  const [user, setUser] = useState<UserData>({
+    name: '',
+    email: '',
+  });
+
+  function handleChange(field: keyof UserData, value: string): void {
+    setUser(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  return (
+    <form>
+      <input
+        value={user.name}
+        onChange={e => handleChange('name', e.target.value)}
+        placeholder="Name"
+      />
+      <input
+        value={user.email}
+        onChange={e => handleChange('email', e.target.value)}
+        placeholder="E-Mail"
+      />
+      <p>Hallo {user.name || '...'} ({user.email || '...'})</p>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-conditional-rendering',
+        title: 'Bedingtes Rendern',
+        duration: '8 Min.',
+        explanation: `In React gibt es mehrere Wege, Inhalte bedingt anzuzeigen:
+
+- **Ternärer Operator**: \`{bedingung ? <A /> : <B />}\` – wenn du zwischen zwei Varianten wechseln willst.
+- **Logisches UND (\`&&\`)**: \`{bedingung && <A />}\` – wenn du etwas anzeigen **oder gar nichts** rendern willst.
+- **Frühes Return**: \`if (!data) return <Loading />\` – nützlich für Ladezustände oder Fehlerfälle.
+- **Variable**: JSX in einer Variable speichern und dann im Return einsetzen.
+
+Vermeide: \`{count && <p>...</p>}\` wenn \`count\` eine Zahl ist – bei \`0\` wird \`"0"\` gerendert statt nichts. Nutze stattdessen \`{count > 0 && ...}\`.`,
+        codeExamples: [
+          {
+            title: 'Alle Patterns im Überblick',
+            js: `import { useState } from 'react';
+
+function Dashboard() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [error, setError] = useState(null);
+
+  // Pattern 1: Frühes Return
+  if (error) {
+    return <p className="error">Fehler: {error}</p>;
+  }
+
+  return (
+    <div>
+      {/* Pattern 2: Ternärer Operator */}
+      {isLoggedIn ? (
+        <h1>Willkommen zurück!</h1>
+      ) : (
+        <h1>Bitte einloggen</h1>
+      )}
+
+      {/* Pattern 3: Logisches UND */}
+      {notifications.length > 0 && (
+        <p>{notifications.length} neue Benachrichtigungen</p>
+      )}
+
+      <button onClick={() => setIsLoggedIn(prev => !prev)}>
+        {isLoggedIn ? 'Ausloggen' : 'Einloggen'}
+      </button>
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+function Dashboard(): JSX.Element {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  if (error) {
+    return <p className="error">Fehler: {error}</p>;
+  }
+
+  return (
+    <div>
+      {isLoggedIn ? (
+        <h1>Willkommen zurück!</h1>
+      ) : (
+        <h1>Bitte einloggen</h1>
+      )}
+
+      {notifications.length > 0 && (
+        <p>{notifications.length} neue Benachrichtigungen</p>
+      )}
+
+      <button onClick={() => setIsLoggedIn(prev => !prev)}>
+        {isLoggedIn ? 'Ausloggen' : 'Einloggen'}
+      </button>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-dynamic-styling',
+        title: 'CSS & dynamisches Styling',
+        duration: '8 Min.',
+        explanation: `Es gibt verschiedene Wege, Komponenten in React zu stylen:
+
+- **CSS-Datei importieren**: \`import './Button.css'\` – einfach, aber global.
+- **Inline Styles**: \`style={{ color: 'red' }}\` – ein JavaScript-Objekt, Properties in camelCase.
+- **Dynamische Klassen**: Klassen basierend auf State oder Props setzen.
+- **CSS-Module**: \`import styles from './Button.module.css'\` – lokal gescoped (keine Konflikte).
+
+**Best Practice**: CSS-Dateien neben die Komponente legen (\`Button.tsx\` + \`Button.css\`). Für dynamische Styles sind bedingte Klassen am performantesten.`,
+        codeExamples: [
+          {
+            title: 'Dynamische Klassen & Inline Styles',
+            js: `import { useState } from 'react';
+import './Tab.css';
+
+function Tab({ label, isActive, onClick }) {
+  return (
+    <button
+      className={'tab' + (isActive ? ' tab--active' : '')}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+// Inline Styles (z. B. für dynamische Werte)
+function ProgressBar({ percent }) {
+  return (
+    <div className="progress">
+      <div
+        className="progress__fill"
+        style={{
+          width: percent + '%',
+          backgroundColor: percent === 100 ? '#4caf50' : '#ff9800',
+        }}
+      />
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+import './Tab.css';
+
+type TabProps = {
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+};
+
+function Tab({ label, isActive, onClick }: TabProps) {
+  return (
+    <button
+      className={'tab' + (isActive ? ' tab--active' : '')}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+type ProgressBarProps = { percent: number };
+
+function ProgressBar({ percent }: ProgressBarProps) {
+  return (
+    <div className="progress">
+      <div
+        className="progress__fill"
+        style={{
+          width: percent + '%',
+          backgroundColor: percent === 100 ? '#4caf50' : '#ff9800',
+        }}
+      />
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-lists',
+        title: 'Listen dynamisch rendern',
+        duration: '8 Min.',
+        explanation: `Um Listen in React zu rendern, nutzt du **\`map()\`** direkt im JSX. Jedes Element in der Liste braucht ein **eindeutiges \`key\`-Prop** – das hilft React, Elemente effizient zu aktualisieren.
+
+Regeln für Keys:
+- Nutze eine **stabile, eindeutige ID** aus deinen Daten (z. B. Datenbank-ID).
+- **Nicht den Array-Index als Key verwenden**, wenn sich die Reihenfolge ändern kann – das führt zu Bugs.
+- Keys müssen nur **unter Geschwistern** eindeutig sein, nicht global.`,
+        codeExamples: [
+          {
+            title: 'Liste mit map() & key',
+            js: `const COURSES = [
+  { id: 'c1', title: 'React', level: 'Anfänger' },
+  { id: 'c2', title: 'Next.js', level: 'Fortgeschritten' },
+  { id: 'c3', title: 'TypeScript', level: 'Anfänger' },
+];
+
+function CourseList() {
+  return (
+    <ul>
+      {COURSES.map(course => (
+        <li key={course.id}>
+          <strong>{course.title}</strong> – {course.level}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Interaktiv: Elemente entfernen
+function EditableCourseList() {
+  const [courses, setCourses] = useState(COURSES);
+
+  function handleRemove(id) {
+    setCourses(prev => prev.filter(c => c.id !== id));
+  }
+
+  return (
+    <ul>
+      {courses.map(course => (
+        <li key={course.id}>
+          {course.title}
+          <button onClick={() => handleRemove(course.id)}>×</button>
+        </li>
+      ))}
+    </ul>
+  );
+}`,
+            ts: `type Course = { id: string; title: string; level: string };
+
+const COURSES: Course[] = [
+  { id: 'c1', title: 'React', level: 'Anfänger' },
+  { id: 'c2', title: 'Next.js', level: 'Fortgeschritten' },
+  { id: 'c3', title: 'TypeScript', level: 'Anfänger' },
+];
+
+function CourseList(): JSX.Element {
+  return (
+    <ul>
+      {COURSES.map(course => (
+        <li key={course.id}>
+          <strong>{course.title}</strong> – {course.level}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EditableCourseList(): JSX.Element {
+  const [courses, setCourses] = useState<Course[]>(COURSES);
+
+  function handleRemove(id: string): void {
+    setCourses(prev => prev.filter(c => c.id !== id));
+  }
+
+  return (
+    <ul>
+      {courses.map(course => (
+        <li key={course.id}>
+          {course.title}
+          <button onClick={() => handleRemove(course.id)}>×</button>
+        </li>
+      ))}
+    </ul>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 're-project-structure',
+        title: 'Projektstruktur & Best Practices',
+        duration: '7 Min.',
+        explanation: `Eine gute Projektstruktur macht deinen Code wartbar und navigierbar. Empfohlener Aufbau:
+
+\`\`\`
+src/
+├── components/         # Wiederverwendbare UI-Komponenten
+│   ├── Button/
+│   │   ├── Button.tsx
+│   │   └── Button.css
+│   └── Card/
+│       ├── Card.tsx
+│       └── Card.css
+├── pages/              # Seitenkomponenten (Route-basiert)
+├── data/               # Statische Daten, Konstanten
+├── types/              # TypeScript-Typen
+├── assets/             # Bilder, Fonts etc.
+├── App.tsx
+└── main.tsx
+\`\`\`
+
+Best Practices:
+- **Eine Komponente pro Datei** – nicht mehrere Komponenten in eine Datei packen.
+- **CSS neben die Komponente legen**: \`Button.tsx\` + \`Button.css\` im selben Ordner.
+- **Exportstil konsistent halten**: Entweder Named Exports oder Default Exports, nicht mischen.
+- **Komponenten klein halten**: Wenn eine Komponente zu groß wird, splitte sie auf.`,
+        codeExamples: [
+          {
+            title: 'Komponenten-Ordner mit Co-Located CSS',
+            js: `// components/Button/Button.jsx
+import './Button.css';
+
+export function Button({ children, variant = 'primary', ...props }) {
+  return (
+    <button className={'btn btn--' + variant} {...props}>
+      {children}
+    </button>
+  );
+}
+
+// components/Button/Button.css
+// .btn { padding: 8px 16px; border: none; border-radius: 6px; }
+// .btn--primary { background: #7c3aed; color: white; }
+// .btn--secondary { background: #e5e7eb; color: #1f2937; }
+
+// Verwendung in einer Seite:
+// pages/Home.jsx
+import { Button } from '../components/Button/Button';
+
+export function Home() {
+  return (
+    <main>
+      <h1>Startseite</h1>
+      <Button>Los geht's</Button>
+      <Button variant="secondary">Abbrechen</Button>
+    </main>
+  );
+}`,
+            ts: `// components/Button/Button.tsx
+import './Button.css';
+import { type ButtonHTMLAttributes, type ReactNode } from 'react';
+
+type ButtonProps = {
+  children: ReactNode;
+  variant?: 'primary' | 'secondary';
+} & ButtonHTMLAttributes<HTMLButtonElement>;
+
+export function Button({ children, variant = 'primary', ...props }: ButtonProps) {
+  return (
+    <button className={'btn btn--' + variant} {...props}>
+      {children}
+    </button>
+  );
+}
+
+// Verwendung:
+import { Button } from '../components/Button/Button';
+
+export function Home(): JSX.Element {
+  return (
+    <main>
+      <h1>Startseite</h1>
+      <Button>Los geht's</Button>
+      <Button variant="secondary">Abbrechen</Button>
+    </main>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
 ]

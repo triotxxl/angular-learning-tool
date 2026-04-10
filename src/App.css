@@ -58,6 +58,25 @@
   padding: 20px 16px;
   border-right: 1px solid var(--color-border);
   background: rgba(18, 17, 16, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(150, 145, 138, 0.3) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(150, 145, 138, 0.3);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(150, 145, 138, 0.5);
+  }
 
   @media (max-width: 768px) {
     position: static;
@@ -194,7 +213,7 @@
     border-radius: 5px;
     padding: 2px 6px;
     font-size: 0.86em;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
   }
 
   strong {
@@ -252,5 +271,3 @@
     border-bottom-color: var(--color-accent);
   }
 }
-
-

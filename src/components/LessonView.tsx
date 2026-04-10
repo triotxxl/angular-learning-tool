@@ -1,5 +1,5 @@
-import type { Lesson } from '../types/glossary';
-import { CodeToggle } from './CodeToggle';
+import type { Lesson } from "../types/glossary";
+import { CodeToggle } from "./CodeToggle";
 
 type LessonViewProps = {
   lesson: Lesson;
@@ -14,8 +14,11 @@ export function LessonView({ lesson }: LessonViewProps) {
       </header>
 
       <div className="lesson-view__explanation">
-        {lesson.explanation.split('\n\n').map((paragraph, i) => (
-          <p key={i} dangerouslySetInnerHTML={{ __html: formatMarkdown(paragraph) }} />
+        {lesson.explanation.split("\n\n").map((paragraph, i) => (
+          <p
+            key={i}
+            dangerouslySetInnerHTML={{ __html: formatMarkdown(paragraph) }}
+          />
         ))}
       </div>
 
@@ -32,9 +35,9 @@ export function LessonView({ lesson }: LessonViewProps) {
 
 function formatMarkdown(text: string): string {
   return text
-    .replace(/\*\*`([^`]+)`\*\*/g, '<strong><code>$1</code></strong>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/^- (.+)/gm, '• $1')
-    .replace(/\n/g, '<br/>');
+    .replace(/\*\*`([^`]+)`\*\*/g, "<strong><code>$1</code></strong>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/^- (.+)/gm, "• $1")
+    .replace(/\n/g, "<br/>");
 }
