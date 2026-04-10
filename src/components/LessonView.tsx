@@ -34,10 +34,25 @@ export function LessonView({ lesson }: LessonViewProps) {
 }
 
 function formatMarkdown(text: string): string {
-  return text
-    .replace(/\*\*`([^`]+)`\*\*/g, "<strong><code>$1</code></strong>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/^- (.+)/gm, "• $1")
-    .replace(/\n/g, "<br/>");
+  return (
+    text
+      // Fenced code blocks: ```...```
+      .replace(
+        /```[\w]*\n([\s\S]*?)```/g,
+        (_m, code) =>
+          `<pre class="explanation-code"><code>${escapeHtml(code).trimEnd()}</code></pre>`,
+      )
+      .replace(
+        /\*\*`([^`]+)`\*\*/g,
+        (_m, c) => `<strong><code>${escapeHtml(c)}</code></strong>`,
+      )
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/`([^`]+)`/g, (_m, c) => `<code>${escapeHtml(c)}</code>`)
+      .replace(/^- (.+)/gm, "• $1")
+      .replace(/\n/g, "<br/>")
+  );
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

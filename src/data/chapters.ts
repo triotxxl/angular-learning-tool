@@ -1960,22 +1960,20 @@ function EditableCourseList(): JSX.Element {
         duration: '7 Min.',
         explanation: `Eine gute Projektstruktur macht deinen Code wartbar und navigierbar. Empfohlener Aufbau:
 
-\`\`\`
 src/
-├── components/         # Wiederverwendbare UI-Komponenten
+├── components/ (Wiederverwendbare UI-Komponenten)
 │   ├── Button/
 │   │   ├── Button.tsx
 │   │   └── Button.css
 │   └── Card/
 │       ├── Card.tsx
 │       └── Card.css
-├── pages/              # Seitenkomponenten (Route-basiert)
-├── data/               # Statische Daten, Konstanten
-├── types/              # TypeScript-Typen
-├── assets/             # Bilder, Fonts etc.
+├── pages/ (Seitenkomponenten, Route-basiert)
+├── data/ (Statische Daten, Konstanten)
+├── types/ (TypeScript-Typen)
+├── assets/ (Bilder, Fonts etc.)
 ├── App.tsx
 └── main.tsx
-\`\`\`
 
 Best Practices:
 - **Eine Komponente pro Datei** – nicht mehrere Komponenten in eine Datei packen.
@@ -2041,6 +2039,1569 @@ export function Home(): JSX.Element {
       <Button>Los geht's</Button>
       <Button variant="secondary">Abbrechen</Button>
     </main>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'react-deep-dive',
+    title: 'Abschnitt 4: React Essentials – Deep Dive',
+    slug: 'react-deep-dive',
+    shortDescription: 'Fortgeschrittene Patterns: Komponenten-Architektur, State-Management, Immutability und flexible JSX-Patterns.',
+    lessons: [
+      {
+        id: 'rdd-jsx-alternatives',
+        title: 'JSX unter der Haube & Fragments',
+        duration: '10 Min.',
+        explanation: `JSX ist **syntaktischer Zucker** für \`React.createElement()\`. Du musst JSX nicht verwenden – aber es ist wesentlich lesbarer. Wenn du verstehst, was im Hintergrund passiert, wirst du JSX-Fehler besser verstehen.
+
+**Fragments** (\`<>...</>\` oder \`<Fragment>...</Fragment>\`) lösen das Problem, dass eine Komponente nur **ein** Wurzelelement zurückgeben darf, ohne ein unnötiges \`<div>\` ins DOM zu setzen.
+
+Wann \`<Fragment key={...}>\` statt \`<>\`: Wenn du in einer \`map()\`-Schleife Fragments mit einem \`key\` brauchst.`,
+        codeExamples: [
+          {
+            title: 'createElement vs. JSX',
+            js: `import { createElement, Fragment } from 'react';
+
+// JSX – so schreibst du es normalerweise:
+function GreetingJSX() {
+  return (
+    <div>
+      <h1>Hallo!</h1>
+      <p>Willkommen bei React</p>
+    </div>
+  );
+}
+
+// Dasselbe ohne JSX – so sieht es nach dem Kompilieren aus:
+function GreetingRaw() {
+  return createElement('div', null,
+    createElement('h1', null, 'Hallo!'),
+    createElement('p', null, 'Willkommen bei React')
+  );
+}
+
+// Fragment mit Key in einer Liste
+function ItemList({ items }) {
+  return items.map(item => (
+    <Fragment key={item.id}>
+      <dt>{item.term}</dt>
+      <dd>{item.definition}</dd>
+    </Fragment>
+  ));
+}`,
+            ts: `import { createElement, Fragment } from 'react';
+
+// JSX – die normale Schreibweise
+function GreetingJSX(): JSX.Element {
+  return (
+    <div>
+      <h1>Hallo!</h1>
+      <p>Willkommen bei React</p>
+    </div>
+  );
+}
+
+// Ohne JSX – nach dem Kompilieren
+function GreetingRaw(): JSX.Element {
+  return createElement('div', null,
+    createElement('h1', null, 'Hallo!'),
+    createElement('p', null, 'Willkommen bei React')
+  );
+}
+
+type Item = { id: string; term: string; definition: string };
+
+function ItemList({ items }: { items: Item[] }): JSX.Element {
+  return (
+    <>
+      {items.map(item => (
+        <Fragment key={item.id}>
+          <dt>{item.term}</dt>
+          <dd>{item.definition}</dd>
+        </Fragment>
+      ))}
+    </>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rdd-splitting-components',
+        title: 'Komponenten aufteilen & Wann splitten?',
+        duration: '12 Min.',
+        explanation: `Eine der wichtigsten Fähigkeiten in React ist zu wissen, **wann** eine Komponente aufgeteilt werden sollte. Anzeichen dafür:
+
+- Die Komponente ist **lang** (> ~100 Zeilen) und nicht mehr auf einen Blick erfassbar.
+- Teile der Komponente verwalten **eigenen State**, der den Rest nicht betrifft.
+- Teile sind **wiederverwendbar** oder könnten es sein.
+- Die Komponente mischt **verschiedene Verantwortlichkeiten** (z. B. Datenlogik + UI).
+
+**Aufteilen nach Feature & State**: Wenn nur ein Teil der UI State braucht, extrahiere ihn – so rendert nicht die ganze große Komponente neu, wenn sich nur ein kleiner Teil ändert.
+
+**Komponenteninstanzen sind isoliert**: Jede Instanz einer Komponente hat ihren **eigenen State**. Zwei \`<Counter />\`-Elemente beeinflussen sich nicht gegenseitig.`,
+        codeExamples: [
+          {
+            title: 'Vorher: Alles in einer Komponente',
+            js: `// ❌ Zu viel in einer Komponente
+function ProductPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [cart, setCart] = useState([]);
+
+  // Filtering, sorting, cart logic, rendering...
+  // 200+ Zeilen...
+}
+
+// ✅ Aufgeteilt nach Feature & State
+function ProductPage() {
+  const [cart, setCart] = useState([]);
+
+  return (
+    <div>
+      <ProductSearch onAddToCart={(p) => setCart(c => [...c, p])} />
+      <CartSummary items={cart} />
+    </div>
+  );
+}
+
+function ProductSearch({ onAddToCart }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  // Nur Search-relevanter State hier
+
+  return (
+    <div>
+      <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+      {/* Produktliste mit Filter/Sort */}
+    </div>
+  );
+}`,
+            ts: `// ✅ Aufgeteilt nach Feature & State
+type Product = { id: string; name: string; price: number };
+
+function ProductPage(): JSX.Element {
+  const [cart, setCart] = useState<Product[]>([]);
+
+  return (
+    <div>
+      <ProductSearch onAddToCart={(p) => setCart(c => [...c, p])} />
+      <CartSummary items={cart} />
+    </div>
+  );
+}
+
+type ProductSearchProps = { onAddToCart: (product: Product) => void };
+
+function ProductSearch({ onAddToCart }: ProductSearchProps): JSX.Element {
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'name' | 'price'>('name');
+
+  return (
+    <div>
+      <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+      {/* Produktliste mit Filter/Sort */}
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Instanzen sind isoliert',
+            js: `function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(c => c + 1)}>Zähler: {count}</button>;
+}
+
+// Jede Instanz hat eigenen State!
+function App() {
+  return (
+    <div>
+      <Counter /> {/* eigener count */}
+      <Counter /> {/* eigener count */}
+      <Counter /> {/* eigener count */}
+    </div>
+  );
+}`,
+            ts: `function Counter(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+  return <button onClick={() => setCount(c => c + 1)}>Zähler: {count}</button>;
+}
+
+function App(): JSX.Element {
+  return (
+    <div>
+      <Counter />
+      <Counter />
+      <Counter />
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rdd-forwarding-props',
+        title: 'Props forwarden & Flexible Komponenten',
+        duration: '12 Min.',
+        explanation: `Wenn du Wrapper-Komponenten baust (z. B. einen eigenen \`<Button>\`), willst du oft **alle Standard-HTML-Attribute** an das innere Element weiterleiten. Das Muster: **Rest-Props sammeln und spreaden**.
+
+Zusätzlich kannst du Komponenten dynamischer machen:
+- **Default Prop Values**: Mit Destructuring-Defaults.
+- **Dynamischer Elementtyp**: Über ein Prop bestimmen, welches HTML-Element gerendert wird (\`as\`-Pattern).
+- **Multiple JSX Slots**: Statt nur \`children\` kannst du mehrere benannte Props für verschiedene Bereiche nutzen.`,
+        codeExamples: [
+          {
+            title: 'Props forwarden mit Rest/Spread',
+            js: `// ❌ Problem: onClick, disabled etc. gehen verloren
+function Button({ label }) {
+  return <button className="btn">{label}</button>;
+}
+<Button label="Senden" onClick={handleClick} /> // onClick wird ignoriert!
+
+// ✅ Lösung: Rest-Props sammeln und spreaden
+function Button({ children, variant = 'primary', ...rest }) {
+  return (
+    <button className={'btn btn--' + variant} {...rest}>
+      {children}
+    </button>
+  );
+}
+
+// Jetzt funktioniert alles:
+<Button onClick={handleClick} disabled={isLoading}>
+  Senden
+</Button>`,
+            ts: `type ButtonProps = {
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary' | 'danger';
+} & React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+function Button({ children, variant = 'primary', ...rest }: ButtonProps) {
+  return (
+    <button className={'btn btn--' + variant} {...rest}>
+      {children}
+    </button>
+  );
+}
+
+// Alle nativen Button-Attribute werden durchgereicht:
+<Button onClick={handleClick} disabled={isLoading} type="submit">
+  Senden
+</Button>`,
+          },
+          {
+            title: 'Dynamischer Element-Typ (as-Pattern)',
+            js: `function Container({ as: Tag = 'div', children, ...rest }) {
+  return <Tag {...rest}>{children}</Tag>;
+}
+
+// Verwendung:
+<Container>Normales div</Container>
+<Container as="section" className="hero">Section-Element</Container>
+<Container as="article" id="post-1">Artikel</Container>`,
+            ts: `type ContainerProps<T extends React.ElementType = 'div'> = {
+  as?: T;
+  children: React.ReactNode;
+} & React.ComponentPropsWithoutRef<T>;
+
+function Container<T extends React.ElementType = 'div'>({
+  as,
+  children,
+  ...rest
+}: ContainerProps<T>) {
+  const Tag = as || 'div';
+  return <Tag {...rest}>{children}</Tag>;
+}
+
+<Container>Normales div</Container>
+<Container as="section" className="hero">Section</Container>`,
+          },
+          {
+            title: 'Multiple JSX Slots',
+            js: `// Statt nur children – mehrere benannte Bereiche
+function Dialog({ title, actions, children }) {
+  return (
+    <div className="dialog">
+      <header className="dialog__header">
+        <h2>{title}</h2>
+      </header>
+      <div className="dialog__body">{children}</div>
+      <footer className="dialog__actions">{actions}</footer>
+    </div>
+  );
+}
+
+// Verwendung:
+<Dialog
+  title="Löschen bestätigen"
+  actions={
+    <>
+      <button onClick={onCancel}>Abbrechen</button>
+      <button onClick={onDelete}>Löschen</button>
+    </>
+  }
+>
+  <p>Bist du sicher, dass du das löschen willst?</p>
+</Dialog>`,
+            ts: `import { type ReactNode } from 'react';
+
+type DialogProps = {
+  title: string;
+  actions: ReactNode;
+  children: ReactNode;
+};
+
+function Dialog({ title, actions, children }: DialogProps) {
+  return (
+    <div className="dialog">
+      <header className="dialog__header">
+        <h2>{title}</h2>
+      </header>
+      <div className="dialog__body">{children}</div>
+      <footer className="dialog__actions">{actions}</footer>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rdd-state-updates',
+        title: 'State korrekt updaten',
+        duration: '15 Min.',
+        explanation: `State-Updates in React haben Regeln, die viele Anfänger stolpern lassen:
+
+**Updater-Funktionen verwenden**: Wenn der neue State vom vorherigen abhängt, nutze immer \`setState(prev => ...)\` statt \`setState(state + 1)\`. Bei schnellen Klicks oder mehrfachen Updates im selben Render-Zyklus geht sonst Information verloren.
+
+**Objekte und Arrays immutabel updaten**: React erkennt Änderungen nur, wenn du ein **neues Objekt/Array** erzeugst (per Spread). Mutation des bestehenden Objekts triggert kein Re-Render.
+
+**Verschachtelte State-Updates**: Bei tief verschachtelten Objekten wird Spread umständlich. Halte deinen State daher möglichst **flach**.`,
+        codeExamples: [
+          {
+            title: 'Updater-Funktion – warum nötig?',
+            js: `import { useState } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  function handleTripleIncrement() {
+    // ❌ Ergebnis: count + 1 (nicht + 3!)
+    // Alle drei lesen denselben Snapshot von count
+    setCount(count + 1);
+    setCount(count + 1);
+    setCount(count + 1);
+
+    // ✅ Ergebnis: count + 3
+    // Updater-Funktion liest immer den neuesten Stand
+    setCount(prev => prev + 1);
+    setCount(prev => prev + 1);
+    setCount(prev => prev + 1);
+  }
+
+  return <button onClick={handleTripleIncrement}>{count}</button>;
+}`,
+            ts: `import { useState } from 'react';
+
+function Counter(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+
+  function handleTripleIncrement(): void {
+    // ❌ Ergebnis: count + 1 (nicht + 3!)
+    setCount(count + 1);
+    setCount(count + 1);
+    setCount(count + 1);
+
+    // ✅ Updater-Funktion
+    setCount(prev => prev + 1);
+    setCount(prev => prev + 1);
+    setCount(prev => prev + 1);
+  }
+
+  return <button onClick={handleTripleIncrement}>{count}</button>;
+}`,
+          },
+          {
+            title: 'Immutable Object- & Array-Updates',
+            js: `import { useState } from 'react';
+
+function App() {
+  const [user, setUser] = useState({ name: 'Max', scores: [10, 20] });
+
+  // ❌ MUTATION – React erkennt keine Änderung!
+  function badUpdate() {
+    user.name = 'Anna';         // mutiert das bestehende Objekt
+    user.scores.push(30);       // mutiert das bestehende Array
+    setUser(user);              // gleiche Referenz → kein Re-Render!
+  }
+
+  // ✅ Immutabel – neues Objekt erzeugen
+  function goodUpdate() {
+    setUser(prev => ({
+      ...prev,
+      name: 'Anna',
+      scores: [...prev.scores, 30],
+    }));
+  }
+
+  // ✅ Element aus Array entfernen
+  function removeScore(index) {
+    setUser(prev => ({
+      ...prev,
+      scores: prev.scores.filter((_, i) => i !== index),
+    }));
+  }
+
+  // ✅ Element in Array aktualisieren
+  function doubleScore(index) {
+    setUser(prev => ({
+      ...prev,
+      scores: prev.scores.map((s, i) => i === index ? s * 2 : s),
+    }));
+  }
+
+  return <p>{user.name}: {user.scores.join(', ')}</p>;
+}`,
+            ts: `import { useState } from 'react';
+
+type User = { name: string; scores: number[] };
+
+function App(): JSX.Element {
+  const [user, setUser] = useState<User>({ name: 'Max', scores: [10, 20] });
+
+  function goodUpdate(): void {
+    setUser(prev => ({
+      ...prev,
+      name: 'Anna',
+      scores: [...prev.scores, 30],
+    }));
+  }
+
+  function removeScore(index: number): void {
+    setUser(prev => ({
+      ...prev,
+      scores: prev.scores.filter((_, i) => i !== index),
+    }));
+  }
+
+  function doubleScore(index: number): void {
+    setUser(prev => ({
+      ...prev,
+      scores: prev.scores.map((s, i) => i === index ? s * 2 : s),
+    }));
+  }
+
+  return <p>{user.name}: {user.scores.join(', ')}</p>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rdd-two-way-binding',
+        title: 'Formulare & Two-Way-Binding',
+        duration: '10 Min.',
+        explanation: `In React sind Formular-Elemente standardmäßig **unkontrolliert** – der Browser verwaltet den Wert. Für die meisten Fälle willst du **kontrollierte Komponenten**: Der State ist die Single Source of Truth, und das Input verändert sich nur über den Setter.
+
+**Two-Way-Binding** in React = \`value\` + \`onChange\` zusammen:
+1. \`value={state}\` – React kontrolliert, was angezeigt wird.
+2. \`onChange={e => setState(e.target.value)}\` – Benutzereingaben aktualisieren den State.
+
+Für mehrdimensionale Listen (z. B. ein Spielfeld) brauchst du verschachtelte \`map()\`-Aufrufe und sorgfältige immutable Updates.`,
+        codeExamples: [
+          {
+            title: 'Kontrolliertes Formular',
+            js: `import { useState } from 'react';
+
+function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    console.log('Login:', { email, password });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <label>
+        E-Mail
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+      </label>
+      <label>
+        Passwort
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+        />
+      </label>
+      <button type="submit" disabled={!email || !password}>
+        Einloggen
+      </button>
+    </form>
+  );
+}`,
+            ts: `import { useState, type FormEvent } from 'react';
+
+function LoginForm(): JSX.Element {
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>): void {
+    e.preventDefault();
+    console.log('Login:', { email, password });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <label>
+        E-Mail
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+        />
+      </label>
+      <label>
+        Passwort
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+        />
+      </label>
+      <button type="submit" disabled={!email || !password}>
+        Einloggen
+      </button>
+    </form>
+  );
+}`,
+          },
+          {
+            title: 'Mehrdimensionale Liste (z. B. Spielfeld)',
+            js: `import { useState } from 'react';
+
+const INITIAL_BOARD = [
+  [null, null, null],
+  [null, null, null],
+  [null, null, null],
+];
+
+function TicTacToe() {
+  const [board, setBoard] = useState(INITIAL_BOARD);
+  const [isX, setIsX] = useState(true);
+
+  function handleClick(row, col) {
+    if (board[row][col]) return; // Feld schon belegt
+
+    setBoard(prev =>
+      prev.map((r, ri) =>
+        ri !== row ? r : r.map((cell, ci) =>
+          ci !== col ? cell : (isX ? 'X' : 'O')
+        )
+      )
+    );
+    setIsX(prev => !prev);
+  }
+
+  return (
+    <div className="board">
+      {board.map((row, ri) => (
+        <div key={ri} className="row">
+          {row.map((cell, ci) => (
+            <button key={ci} onClick={() => handleClick(ri, ci)}>
+              {cell ?? '·'}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+type Cell = 'X' | 'O' | null;
+type Board = Cell[][];
+
+const INITIAL_BOARD: Board = [
+  [null, null, null],
+  [null, null, null],
+  [null, null, null],
+];
+
+function TicTacToe(): JSX.Element {
+  const [board, setBoard] = useState<Board>(INITIAL_BOARD);
+  const [isX, setIsX] = useState<boolean>(true);
+
+  function handleClick(row: number, col: number): void {
+    if (board[row][col]) return;
+
+    setBoard(prev =>
+      prev.map((r, ri) =>
+        ri !== row ? r : r.map((cell, ci) =>
+          ci !== col ? cell : (isX ? 'X' : 'O')
+        )
+      )
+    );
+    setIsX(prev => !prev);
+  }
+
+  return (
+    <div className="board">
+      {board.map((row, ri) => (
+        <div key={ri} className="row">
+          {row.map((cell, ci) => (
+            <button key={ci} onClick={() => handleClick(ri, ci)}>
+              {cell ?? '·'}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rdd-lifting-state',
+        title: 'Lifting State Up & Sharing State',
+        duration: '15 Min.',
+        explanation: `Wenn mehrere Komponenten **denselben State** brauchen, muss er in ihren **gemeinsamen Elternteil** gehoben werden – das nennt man **Lifting State Up**.
+
+Das Pattern:
+1. State in der **übergeordneten Komponente** definieren.
+2. Den **Wert als Prop** nach unten geben.
+3. Die **Setter-Funktion als Callback-Prop** nach unten geben.
+
+**Wann NICHT liften**: Wenn nur eine Komponente den State braucht, lass ihn dort. Unnötiges Hochziehen macht den Code komplexer und führt zu unnötigen Re-Renders.
+
+**Alternative zu Lifting State Up**: Für tief verschachtelte Komponenten, wo Props durch viele Ebenen gereicht werden müssten (Prop Drilling), gibt es Context API oder State-Management-Bibliotheken – das kommt in späteren Kapiteln.`,
+        codeExamples: [
+          {
+            title: 'State hochziehen',
+            js: `import { useState } from 'react';
+
+// State liegt im gemeinsamen Elternteil
+function App() {
+  const [selectedPlayer, setSelectedPlayer] = useState('Spieler 1');
+
+  return (
+    <div>
+      <PlayerSelector
+        current={selectedPlayer}
+        onChange={setSelectedPlayer}
+      />
+      <GameBoard player={selectedPlayer} />
+    </div>
+  );
+}
+
+// Kind 1: Zeigt & ändert den State
+function PlayerSelector({ current, onChange }) {
+  return (
+    <div>
+      <p>Aktuell: {current}</p>
+      <button onClick={() => onChange('Spieler 1')}>Spieler 1</button>
+      <button onClick={() => onChange('Spieler 2')}>Spieler 2</button>
+    </div>
+  );
+}
+
+// Kind 2: Liest den State
+function GameBoard({ player }) {
+  return <p>{player} ist am Zug.</p>;
+}`,
+            ts: `import { useState } from 'react';
+
+function App(): JSX.Element {
+  const [selectedPlayer, setSelectedPlayer] = useState<string>('Spieler 1');
+
+  return (
+    <div>
+      <PlayerSelector
+        current={selectedPlayer}
+        onChange={setSelectedPlayer}
+      />
+      <GameBoard player={selectedPlayer} />
+    </div>
+  );
+}
+
+type PlayerSelectorProps = {
+  current: string;
+  onChange: (player: string) => void;
+};
+
+function PlayerSelector({ current, onChange }: PlayerSelectorProps): JSX.Element {
+  return (
+    <div>
+      <p>Aktuell: {current}</p>
+      <button onClick={() => onChange('Spieler 1')}>Spieler 1</button>
+      <button onClick={() => onChange('Spieler 2')}>Spieler 2</button>
+    </div>
+  );
+}
+
+function GameBoard({ player }: { player: string }): JSX.Element {
+  return <p>{player} ist am Zug.</p>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rdd-computed-values',
+        title: 'Berechnete Werte & unnötigen State vermeiden',
+        duration: '12 Min.',
+        explanation: `Ein häufiger Fehler: State für Werte anlegen, die sich **direkt aus vorhandenem State berechnen** lassen. Das führt zu Synchronisations-Bugs und unnötiger Komplexität.
+
+**Faustregel**: Wenn ein Wert aus State oder Props ableitbar ist, berechne ihn direkt – kein extra \`useState\` dafür.
+
+**Intersecting States vermeiden**: Wenn zwei State-Werte sich widersprechen können (z. B. \`items[]\` und \`selectedItem\`), speichere nur die ID und leite das Objekt ab.
+
+**Computed Values liften**: Berechnungen können auch in der Elternkomponente stattfinden und als Prop nach unten gegeben werden. Das hält Kindkomponenten schlank.`,
+        codeExamples: [
+          {
+            title: 'Derived State statt extra useState',
+            js: `import { useState } from 'react';
+
+function ShoppingCart() {
+  const [items, setItems] = useState([
+    { id: 1, name: 'React-Buch', price: 35, qty: 1 },
+    { id: 2, name: 'TypeScript-Kurs', price: 49, qty: 2 },
+  ]);
+
+  // ❌ NICHT so – getrennter State für abgeleiteten Wert:
+  // const [total, setTotal] = useState(133);
+  // Du müsstest total immer manuell synchronisieren!
+
+  // ✅ Direkt berechnen – immer korrekt
+  const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const itemCount = items.reduce((sum, item) => sum + item.qty, 0);
+
+  return (
+    <div>
+      <p>{itemCount} Artikel – Gesamt: {total} €</p>
+      {items.map(item => (
+        <p key={item.id}>{item.name}: {item.price} € × {item.qty}</p>
+      ))}
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+type CartItem = { id: number; name: string; price: number; qty: number };
+
+function ShoppingCart(): JSX.Element {
+  const [items, setItems] = useState<CartItem[]>([
+    { id: 1, name: 'React-Buch', price: 35, qty: 1 },
+    { id: 2, name: 'TypeScript-Kurs', price: 49, qty: 2 },
+  ]);
+
+  // ✅ Direkt berechnen
+  const total: number = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const itemCount: number = items.reduce((sum, i) => sum + i.qty, 0);
+
+  return (
+    <div>
+      <p>{itemCount} Artikel – Gesamt: {total} €</p>
+      {items.map(item => (
+        <p key={item.id}>{item.name}: {item.price} € × {item.qty}</p>
+      ))}
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Intersecting State vermeiden',
+            js: `import { useState } from 'react';
+
+const COURSES = [
+  { id: 'c1', title: 'React Basics', level: 'Anfänger' },
+  { id: 'c2', title: 'Advanced React', level: 'Profi' },
+];
+
+function CourseSelector() {
+  // ❌ Doppelter State – kann out-of-sync geraten:
+  // const [courses] = useState(COURSES);
+  // const [selectedCourse, setSelectedCourse] = useState(COURSES[0]);
+
+  // ✅ Nur die ID speichern, Objekt ableiten:
+  const [selectedId, setSelectedId] = useState('c1');
+  const selectedCourse = COURSES.find(c => c.id === selectedId);
+
+  return (
+    <div>
+      {COURSES.map(c => (
+        <button key={c.id} onClick={() => setSelectedId(c.id)}>
+          {c.title}
+        </button>
+      ))}
+      {selectedCourse && <p>Gewählt: {selectedCourse.title}</p>}
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+type Course = { id: string; title: string; level: string };
+
+const COURSES: Course[] = [
+  { id: 'c1', title: 'React Basics', level: 'Anfänger' },
+  { id: 'c2', title: 'Advanced React', level: 'Profi' },
+];
+
+function CourseSelector(): JSX.Element {
+  // ✅ Nur ID speichern, Objekt ableiten
+  const [selectedId, setSelectedId] = useState<string>('c1');
+  const selectedCourse = COURSES.find(c => c.id === selectedId);
+
+  return (
+    <div>
+      {COURSES.map(c => (
+        <button key={c.id} onClick={() => setSelectedId(c.id)}>
+          {c.title}
+        </button>
+      ))}
+      {selectedCourse && <p>Gewählt: {selectedCourse.title}</p>}
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rdd-data-architecture',
+        title: 'Daten auslagern & Projektarchitektur',
+        duration: '8 Min.',
+        explanation: `Wenn dein Projekt wächst, gehören **statische Daten und Konstanten** nicht inline in Komponenten. Lagere sie in eigene Dateien aus:
+
+- **\`data/\`-Ordner**: Für statische Datensätze, Konfiguration, Dummy-Daten.
+- **\`public/\` vs. \`assets/\`**: Dateien in \`public/\` werden 1:1 kopiert (für Favicons, Robots.txt). Dateien in \`src/assets/\` werden vom Bundler verarbeitet und optimiert (Bilder, SVGs).
+- **Konstanten raus aus Komponenten**: Werte, die sich nicht ändern, gehören außerhalb der Komponentenfunktion, um sie nicht bei jedem Render neu zu erzeugen.
+
+**Nicht alles muss eine Komponente sein**: statische Hilfslogik, Daten-Transformationen oder Konstanten gehören in eigene Dateien – nicht in Komponenten verpackt.`,
+        codeExamples: [
+          {
+            title: 'Daten auslagern',
+            js: `// data/courses.js
+export const CORE_CONCEPTS = [
+  { id: 'c1', title: 'Components', icon: '🧩', description: 'Bausteine der UI' },
+  { id: 'c2', title: 'JSX', icon: '📝', description: 'HTML-ähnliche Syntax' },
+  { id: 'c3', title: 'Props', icon: '📦', description: 'Daten an Kinder übergeben' },
+  { id: 'c4', title: 'State', icon: '⚡', description: 'Reaktive Daten' },
+];
+
+// components/ConceptList.jsx
+import { CORE_CONCEPTS } from '../data/courses';
+
+// Konstante AUSSERHALB der Komponente – wird nur einmal erzeugt
+const BADGE_COLORS = {
+  Components: '#e0f2fe',
+  JSX: '#fef3c7',
+  Props: '#ede9fe',
+  State: '#fce7f3',
+};
+
+function ConceptList() {
+  return (
+    <ul>
+      {CORE_CONCEPTS.map(concept => (
+        <li key={concept.id}>
+          <span>{concept.icon}</span>
+          <strong>{concept.title}</strong>
+          <p>{concept.description}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}`,
+            ts: `// data/courses.ts
+export type CoreConcept = {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+};
+
+export const CORE_CONCEPTS: CoreConcept[] = [
+  { id: 'c1', title: 'Components', icon: '🧩', description: 'Bausteine der UI' },
+  { id: 'c2', title: 'JSX', icon: '📝', description: 'HTML-ähnliche Syntax' },
+  { id: 'c3', title: 'Props', icon: '📦', description: 'Daten an Kinder übergeben' },
+  { id: 'c4', title: 'State', icon: '⚡', description: 'Reaktive Daten' },
+];
+
+// components/ConceptList.tsx
+import { CORE_CONCEPTS } from '../data/courses';
+
+function ConceptList(): JSX.Element {
+  return (
+    <ul>
+      {CORE_CONCEPTS.map(concept => (
+        <li key={concept.id}>
+          <span>{concept.icon}</span>
+          <strong>{concept.title}</strong>
+          <p>{concept.description}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'styling-react',
+    title: 'Abschnitt 6: Styling React Components',
+    slug: 'styling-react',
+    shortDescription: 'Alle Wege, React-Komponenten zu stylen: Vanilla CSS, CSS Modules, Styled Components und Tailwind CSS.',
+    lessons: [
+      {
+        id: 'sty-vanilla-css',
+        title: 'Vanilla CSS & Inline Styles',
+        duration: '12 Min.',
+        explanation: `Der einfachste Weg, React-Komponenten zu stylen, ist **normales CSS** – du importierst eine CSS-Datei direkt in deine Komponente.
+
+**Vorteile**: Einfach, kein Extra-Setup, jeder kennt CSS.
+**Nachteile**: Styles sind **global** – ein \`.btn\`-Selektor gilt für die gesamte App. Das kann schnell zu Konflikten führen.
+
+**Best Practice**: CSS-Dateien neben die Komponente legen und nach ihr benennen (\`Header.tsx\` + \`Header.css\`). CSS über mehrere Dateien aufteilen, statt alles in eine große Datei zu packen.
+
+**Inline Styles** (\`style={{ ... }}\`) sind ein JavaScript-Objekt mit camelCase-Properties. Nützlich für **dynamische Werte** (z. B. Breite aus State), aber schlecht für Pseudo-Selektoren, Media Queries und Wartbarkeit.`,
+        codeExamples: [
+          {
+            title: 'CSS-Datei importieren',
+            js: `// Button.css
+// .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; }
+// .btn--primary { background: #7c3aed; color: white; }
+// .btn--outline { background: transparent; border: 2px solid #7c3aed; color: #7c3aed; }
+
+// Button.jsx
+import './Button.css';
+
+function Button({ children, variant = 'primary', ...rest }) {
+  return (
+    <button className={'btn btn--' + variant} {...rest}>
+      {children}
+    </button>
+  );
+}`,
+            ts: `// Button.tsx
+import './Button.css';
+
+type ButtonProps = {
+  children: React.ReactNode;
+  variant?: 'primary' | 'outline';
+} & React.ButtonHTMLAttributes<HTMLButtonElement>;
+
+function Button({ children, variant = 'primary', ...rest }: ButtonProps) {
+  return (
+    <button className={'btn btn--' + variant} {...rest}>
+      {children}
+    </button>
+  );
+}`,
+          },
+          {
+            title: 'Inline Styles & dynamisches Styling',
+            js: `import { useState } from 'react';
+
+function ProgressBar({ percent }) {
+  // Inline-Style für dynamische Breite
+  return (
+    <div className="progress">
+      <div
+        style={{
+          width: percent + '%',
+          height: '8px',
+          borderRadius: '4px',
+          backgroundColor: percent >= 100 ? '#22c55e' : '#8b5cf6',
+          transition: 'width 300ms ease',
+        }}
+      />
+    </div>
+  );
+}
+
+// Dynamische Klasse basierend auf State
+function Input({ label, isValid }) {
+  return (
+    <label>
+      {label}
+      <input
+        className={'input' + (!isValid ? ' input--error' : '')}
+        style={{ borderColor: isValid ? undefined : '#ef4444' }}
+      />
+    </label>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+type ProgressBarProps = { percent: number };
+
+function ProgressBar({ percent }: ProgressBarProps) {
+  return (
+    <div className="progress">
+      <div
+        style={{
+          width: percent + '%',
+          height: '8px',
+          borderRadius: '4px',
+          backgroundColor: percent >= 100 ? '#22c55e' : '#8b5cf6',
+          transition: 'width 300ms ease',
+        }}
+      />
+    </div>
+  );
+}
+
+type InputProps = { label: string; isValid: boolean };
+
+function Input({ label, isValid }: InputProps) {
+  return (
+    <label>
+      {label}
+      <input
+        className={'input' + (!isValid ? ' input--error' : '')}
+        style={{ borderColor: isValid ? undefined : '#ef4444' }}
+      />
+    </label>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'sty-css-modules',
+        title: 'CSS Modules',
+        duration: '10 Min.',
+        explanation: `**CSS Modules** lösen das Scoping-Problem von Vanilla CSS: Jede Klasse wird automatisch **lokal** zur Komponente – keine Konflikte mehr.
+
+So funktioniert es:
+- Datei benennen: \`Button.module.css\` (das \`.module.\` ist wichtig!)
+- Importieren als Objekt: \`import styles from './Button.module.css'\`
+- Klassen verwenden: \`className={styles.btn}\`
+
+Der Bundler generiert automatisch eindeutige Klassennamen wie \`Button_btn_x7a2f\`. Im CSS schreibst du ganz normales CSS – keine neue Syntax nötig.
+
+**Vorteile**: Kein Namenskollisions-Risiko, normales CSS, funktioniert out-of-the-box mit Vite.
+**Nachteile**: Dynamische Styles etwas umständlicher als bei CSS-in-JS.`,
+        codeExamples: [
+          {
+            title: 'CSS Module einsetzen',
+            js: `// Button.module.css
+// .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; }
+// .primary { background: #7c3aed; color: white; }
+// .outline { background: transparent; border: 2px solid #7c3aed; }
+
+// Button.jsx
+import styles from './Button.module.css';
+
+function Button({ children, variant = 'primary' }) {
+  // styles.btn → 'Button_btn_x7a2f' (eindeutig!)
+  const classes = styles.btn + ' ' + styles[variant];
+
+  return <button className={classes}>{children}</button>;
+}
+
+// Im DOM:
+// <button class="Button_btn_x7a2f Button_primary_k3m1">Klick</button>`,
+            ts: `// Button.module.css
+// .btn { padding: 8px 16px; border: none; border-radius: 6px; }
+// .primary { background: #7c3aed; color: white; }
+// .outline { background: transparent; border: 2px solid #7c3aed; }
+
+// Button.tsx
+import styles from './Button.module.css';
+
+type ButtonProps = {
+  children: React.ReactNode;
+  variant?: 'primary' | 'outline';
+};
+
+function Button({ children, variant = 'primary' }: ButtonProps) {
+  const classes = styles.btn + ' ' + styles[variant];
+  return <button className={classes}>{children}</button>;
+}`,
+          },
+          {
+            title: 'Dynamische Klassen mit CSS Modules',
+            js: `import styles from './Alert.module.css';
+
+function Alert({ type = 'info', children }) {
+  // Mehrere Klassen kombinieren
+  const className = [
+    styles.alert,
+    type === 'error' ? styles.error : '',
+    type === 'success' ? styles.success : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return <div className={className}>{children}</div>;
+}
+
+// Oder Template Literal:
+function Alert2({ type = 'info', children }) {
+  return (
+    <div className={\`\${styles.alert} \${styles[type] ?? ''}\`}>
+      {children}
+    </div>
+  );
+}`,
+            ts: `import styles from './Alert.module.css';
+
+type AlertProps = {
+  type?: 'info' | 'error' | 'success';
+  children: React.ReactNode;
+};
+
+function Alert({ type = 'info', children }: AlertProps) {
+  const className = [
+    styles.alert,
+    styles[type] ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return <div className={className}>{children}</div>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'sty-styled-components',
+        title: 'Styled Components (CSS-in-JS)',
+        duration: '15 Min.',
+        explanation: `**Styled Components** ist eine populäre CSS-in-JS-Library. Du schreibst CSS direkt in JavaScript mit Tagged Template Literals. Jede Styled Component erzeugt automatisch eine React-Komponente mit einzigartigem Klassennamen.
+
+**Vorteile**:
+- Styles leben direkt bei der Komponente – keine separate CSS-Datei.
+- Automatisches Scoping (wie CSS Modules).
+- **Dynamische Styles über Props** – extrem mächtig.
+- Pseudo-Selektoren, Nesting und Media Queries direkt unterstützt.
+
+**Nachteile**:
+- Zusätzliche Dependency (\`styled-components\`).
+- Kann bei sehr vielen Komponenten die Bundle-Größe erhöhen.
+- Lernkurve für die spezielle Syntax.
+
+Mit \`styled(BaseComponent)\` kannst du bestehende Styled Components erweitern – ideal für Varianten.`,
+        codeExamples: [
+          {
+            title: 'Grundlagen & dynamische Props',
+            js: `import styled from 'styled-components';
+
+// Basis-Button
+const Button = styled.button\`
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 200ms ease;
+
+  /* Dynamisch basierend auf Props */
+  background: \${(props) => props.variant === 'outline'
+    ? 'transparent'
+    : '#7c3aed'};
+  color: \${(props) => props.variant === 'outline'
+    ? '#7c3aed'
+    : 'white'};
+  border: 2px solid #7c3aed;
+
+  /* Pseudo-Selektoren funktionieren direkt */
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Media Queries */
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+\`;
+
+function App() {
+  return (
+    <div>
+      <Button>Primary</Button>
+      <Button variant="outline">Outline</Button>
+      <Button disabled>Deaktiviert</Button>
+    </div>
+  );
+}`,
+            ts: `import styled from 'styled-components';
+
+type ButtonVariant = 'primary' | 'outline';
+
+const Button = styled.button<{ variant?: ButtonVariant }>\`
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 200ms ease;
+
+  background: \${(props) => props.variant === 'outline'
+    ? 'transparent'
+    : '#7c3aed'};
+  color: \${(props) => props.variant === 'outline'
+    ? '#7c3aed'
+    : 'white'};
+  border: 2px solid #7c3aed;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+\`;
+
+function App(): JSX.Element {
+  return (
+    <div>
+      <Button>Primary</Button>
+      <Button variant="outline">Outline</Button>
+      <Button disabled>Deaktiviert</Button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Komponenten erweitern & Nesting',
+            js: `import styled from 'styled-components';
+
+// Basis-Komponente
+const Card = styled.div\`
+  padding: 20px;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+\`;
+
+// Erweiterte Variante
+const HighlightCard = styled(Card)\`
+  border-left: 4px solid #7c3aed;
+  background: #faf5ff;
+\`;
+
+// Nesting – innere Elemente stylen
+const Navbar = styled.nav\`
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+
+  a {
+    text-decoration: none;
+    color: #4b5563;
+
+    &:hover {
+      color: #7c3aed;
+    }
+
+    &.active {
+      font-weight: 700;
+      color: #7c3aed;
+    }
+  }
+\`;`,
+            ts: `import styled from 'styled-components';
+
+const Card = styled.div\`
+  padding: 20px;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+\`;
+
+const HighlightCard = styled(Card)\`
+  border-left: 4px solid #7c3aed;
+  background: #faf5ff;
+\`;
+
+const Navbar = styled.nav\`
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+
+  a {
+    text-decoration: none;
+    color: #4b5563;
+
+    &:hover { color: #7c3aed; }
+    &.active { font-weight: 700; color: #7c3aed; }
+  }
+\`;`,
+          },
+        ],
+      },
+      {
+        id: 'sty-tailwind',
+        title: 'Tailwind CSS',
+        duration: '15 Min.',
+        explanation: `**Tailwind CSS** ist ein Utility-First CSS-Framework. Statt eigene Klassen zu schreiben, nutzt du vordefinierte Utility-Klassen direkt im \`className\`.
+
+**Setup mit Vite**: \`pnpm add -D tailwindcss @tailwindcss/vite\`, dann Plugin in \`vite.config.ts\` einbinden und \`@import "tailwindcss"\` in die CSS-Datei schreiben.
+
+**Vorteile**:
+- Extrem schnelle Entwicklung – kein Wechsel zwischen CSS- und JS-Dateien.
+- Konsistentes Design-System (Spacing, Farben, Breakpoints).
+- Nur genutzte Klassen landen im Bundle (Tree-Shaking).
+- Responsive, Hover, Dark Mode direkt über Prefixe: \`md:\`, \`hover:\`, \`dark:\`.
+
+**Nachteile**:
+- Lange Klassenlisten können unübersichtlich werden.
+- Lernkurve für die Utility-Klassen.
+- Puristisches CSS-Wissen wird weniger trainiert.
+
+**Dynamisches Styling**: Klassen per Template Literal oder mit Bibliotheken wie \`clsx\` zusammenbauen.`,
+        codeExamples: [
+          {
+            title: 'Grundlegendes Tailwind-Styling',
+            js: `// Statt CSS:
+// .card { padding: 20px; border-radius: 12px; background: white; box-shadow: ... }
+
+// Mit Tailwind – direkt im className:
+function Card({ children, title }) {
+  return (
+    <div className="p-5 rounded-xl bg-white shadow-md hover:shadow-lg transition-shadow">
+      <h2 className="text-lg font-bold text-gray-900 mb-2">{title}</h2>
+      <div className="text-gray-600 text-sm leading-relaxed">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Responsive: sm:, md:, lg: Prefixe
+function Hero() {
+  return (
+    <section className="px-4 py-12 md:px-8 md:py-20 lg:px-16">
+      <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold">
+        Willkommen
+      </h1>
+    </section>
+  );
+}`,
+            ts: `type CardProps = {
+  children: React.ReactNode;
+  title: string;
+};
+
+function Card({ children, title }: CardProps) {
+  return (
+    <div className="p-5 rounded-xl bg-white shadow-md hover:shadow-lg transition-shadow">
+      <h2 className="text-lg font-bold text-gray-900 mb-2">{title}</h2>
+      <div className="text-gray-600 text-sm leading-relaxed">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Hero(): JSX.Element {
+  return (
+    <section className="px-4 py-12 md:px-8 md:py-20 lg:px-16">
+      <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold">
+        Willkommen
+      </h1>
+    </section>
+  );
+}`,
+          },
+          {
+            title: 'Dynamische Klassen & Pseudo-Selektoren',
+            js: `// Dynamische Klassen basierend auf Props/State
+function Button({ children, variant = 'primary', disabled }) {
+  const baseClasses = 'px-4 py-2 rounded-lg font-semibold transition-all';
+
+  const variantClasses = {
+    primary: 'bg-purple-600 text-white hover:bg-purple-700',
+    outline: 'bg-transparent border-2 border-purple-600 text-purple-600 hover:bg-purple-50',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+  };
+
+  const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+
+  return (
+    <button
+      className={baseClasses + ' ' + variantClasses[variant] + ' ' + disabledClasses}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Pseudo-Selektoren via Prefixe
+function Input({ label, error }) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <input
+        className={
+          'mt-1 block w-full rounded-md border px-3 py-2 ' +
+          'focus:outline-none focus:ring-2 ' +
+          (error
+            ? 'border-red-500 focus:ring-red-300'
+            : 'border-gray-300 focus:ring-purple-300')
+        }
+      />
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+    </label>
+  );
+}`,
+            ts: `type ButtonProps = {
+  children: React.ReactNode;
+  variant?: 'primary' | 'outline' | 'danger';
+  disabled?: boolean;
+};
+
+function Button({ children, variant = 'primary', disabled }: ButtonProps) {
+  const baseClasses = 'px-4 py-2 rounded-lg font-semibold transition-all';
+
+  const variantClasses: Record<string, string> = {
+    primary: 'bg-purple-600 text-white hover:bg-purple-700',
+    outline: 'bg-transparent border-2 border-purple-600 text-purple-600 hover:bg-purple-50',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+  };
+
+  const disabledClasses = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+
+  return (
+    <button
+      className={baseClasses + ' ' + variantClasses[variant] + ' ' + disabledClasses}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+
+type InputProps = { label: string; error?: string };
+
+function Input({ label, error }: InputProps) {
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <input
+        className={
+          'mt-1 block w-full rounded-md border px-3 py-2 ' +
+          'focus:outline-none focus:ring-2 ' +
+          (error
+            ? 'border-red-500 focus:ring-red-300'
+            : 'border-gray-300 focus:ring-purple-300')
+        }
+      />
+      {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+    </label>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'sty-comparison',
+        title: 'Vergleich & Wann was nutzen?',
+        duration: '5 Min.',
+        explanation: `Jeder Styling-Ansatz hat seine Berechtigung. Hier ein Überblick:
+
+**Vanilla CSS**
+- Für: Kleine Projekte, schneller Start.
+- Gegen: Große Teams (Namenskonflikte).
+
+**CSS Modules**
+- Für: Mittlere bis große Projekte. Kein Extra-Setup nötig (Vite unterstützt es nativ).
+- Gegen: Wenn du viel dynamisches Styling brauchst.
+
+**Styled Components**
+- Für: Stark komponentenbasierte Apps, viel dynamisches Styling.
+- Gegen: Performance-kritische Apps, Team bevorzugt klassisches CSS.
+
+**Tailwind CSS**
+- Für: Schnelle Prototypen, konsistentes Design-System, große Teams.
+- Gegen: Wenn du viel custom CSS brauchst oder lange Klassenlisten hasst.
+
+**Empfehlung für React-Projekte**: CSS Modules oder Tailwind CSS. Beide funktionieren hervorragend mit TypeScript und haben keine Runtime-Kosten. Styled Components ist eine gute Alternative, wenn du CSS-in-JS bevorzugst.`,
+        codeExamples: [
+          {
+            title: 'Derselbe Button – 4 Ansätze',
+            js: `// 1. Vanilla CSS
+import './Button.css';
+function Button1({ children }) {
+  return <button className="btn btn--primary">{children}</button>;
+}
+
+// 2. CSS Modules
+import styles from './Button.module.css';
+function Button2({ children }) {
+  return <button className={styles.primary}>{children}</button>;
+}
+
+// 3. Styled Components
+import styled from 'styled-components';
+const Button3 = styled.button\`
+  padding: 8px 16px;
+  background: #7c3aed;
+  color: white;
+  border: none;
+  border-radius: 6px;
+\`;
+
+// 4. Tailwind CSS
+function Button4({ children }) {
+  return (
+    <button className="px-4 py-2 bg-purple-600 text-white rounded-md">
+      {children}
+    </button>
+  );
+}`,
+            ts: `// 1. Vanilla CSS
+import './Button.css';
+function Button1({ children }: { children: React.ReactNode }) {
+  return <button className="btn btn--primary">{children}</button>;
+}
+
+// 2. CSS Modules
+import styles from './Button.module.css';
+function Button2({ children }: { children: React.ReactNode }) {
+  return <button className={styles.primary}>{children}</button>;
+}
+
+// 3. Styled Components
+import styled from 'styled-components';
+const Button3 = styled.button\`
+  padding: 8px 16px;
+  background: #7c3aed;
+  color: white;
+  border: none;
+  border-radius: 6px;
+\`;
+
+// 4. Tailwind CSS
+function Button4({ children }: { children: React.ReactNode }) {
+  return (
+    <button className="px-4 py-2 bg-purple-600 text-white rounded-md">
+      {children}
+    </button>
   );
 }`,
           },
