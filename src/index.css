@@ -2,19 +2,19 @@
   --font-body: "Manrope", "Segoe UI", sans-serif;
   --font-head: "Sora", "Segoe UI", sans-serif;
 
-  --color-text: #e6ecff;
-  --color-text-muted: #acb8dd;
-  --color-text-dim: #7f8eb8;
-  --color-accent: #8bb3ff;
+  --color-text: #e8e6e3;
+  --color-text-muted: #b0ada8;
+  --color-text-dim: #807b74;
+  --color-accent: #c9a0ff;
 
-  --color-border: rgba(129, 149, 205, 0.35);
-  --color-border-bright: rgba(151, 177, 246, 0.52);
-  --color-surface: rgba(15, 22, 41, 0.75);
-  --color-surface-alt: rgba(19, 29, 53, 0.88);
-  --color-surface-hover: rgba(54, 76, 130, 0.22);
+  --color-border: rgba(150, 145, 138, 0.25);
+  --color-border-bright: rgba(180, 175, 168, 0.38);
+  --color-surface: rgba(22, 21, 20, 0.75);
+  --color-surface-alt: rgba(28, 27, 25, 0.88);
+  --color-surface-hover: rgba(70, 67, 62, 0.22);
 
-  --color-shadow-soft: 0 14px 30px rgba(3, 7, 18, 0.4);
-  --color-shadow-hover: 0 18px 38px rgba(3, 7, 18, 0.58);
+  --color-shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.35);
+  --color-shadow-hover: 0 18px 38px rgba(0, 0, 0, 0.5);
 
   font-family: var(--font-body);
   line-height: 1.5;
@@ -33,10 +33,10 @@ body {
   min-width: 320px;
   color: var(--color-text);
   background:
-    radial-gradient(circle at 15% 6%, rgba(84, 139, 255, 0.22) 0%, rgba(84, 139, 255, 0) 34%),
-    radial-gradient(circle at 84% 12%, rgba(79, 204, 255, 0.2) 0%, rgba(79, 204, 255, 0) 34%),
-    radial-gradient(circle at 50% 120%, rgba(255, 133, 76, 0.2) 0%, rgba(255, 133, 76, 0) 38%),
-    linear-gradient(160deg, #060913 0%, #0d1325 48%, #090f21 100%);
+    radial-gradient(circle at 15% 6%, rgba(160, 120, 255, 0.1) 0%, transparent 34%),
+    radial-gradient(circle at 84% 12%, rgba(200, 160, 255, 0.07) 0%, transparent 34%),
+    radial-gradient(circle at 50% 120%, rgba(255, 170, 100, 0.08) 0%, transparent 38%),
+    linear-gradient(160deg, #111110 0%, #1a1918 48%, #141312 100%);
 }
 
 #root {

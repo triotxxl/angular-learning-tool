@@ -1,22 +1,35 @@
 # React Glossar Boilerplate
 
-React + Vite + TypeScript Grundgeruest fuer ein Nachschlagewerk zu React-Themen
+React + Vite + TypeScript Grundgerüst für ein Nachschlagewerk zu React-Themen
 (inhaltlich angelehnt an typische Themen einer umfassenden React-Udemy-Lernstrecke).
 
 ## Status
 
-- Boilerplate ist eingerichtet und lauffaehig.
-- Beispiel-Startseite mit Topic-Karten ist vorhanden.
-- Linke Themen-Navigation (Desktop sticky) ist integriert.
-- Dark Theme ist als Standard gestaltet.
-- Inhalte sind aktuell Platzhalter und koennen Schritt fuer Schritt ersetzt/erweitert werden.
+- Boilerplate ist eingerichtet und lauffähig.
+- Route-basierte Navigation mit Detailansicht pro Thema ist aktiv (`/thema/:slug`).
+- Dark Theme ist als Standard gestaltet, angelehnt an Vite-Docs-Ästhetik.
+- UI-Komponenten basieren auf **Mantine** (kostenlose Component Library).
+- Codebeispiele sind per Toggle zwischen JavaScript und TypeScript umschaltbar.
+- Der JS/TS-Toggle sitzt global unten in der linken Navigation (via React Context).
+- TypeScript-spezifische Zeilen werden im TS-Modus farblich hervorgehoben.
+- **Dreispaltiges Layout**: Themen-Nav (links, 240px) → Inhalt (flex) → "Auf dieser Seite"-Nav (rechts, 200px).
+- Unterthemen-Navigation scrollt smooth zu den jeweiligen Sektionen.
+- Aktives Unterthema wird per `IntersectionObserver` erkannt und cyan hervorgehoben.
+- Sektionen sind als fließendes Dokument mit Divider dargestellt (keine Cards).
+- Jede Sektion hat ein optionales `keywords`-Feld für Schlagwort-Badges.
+- Übersichtskarten sind direkt klickbar und navigieren zur Detailansicht.
+- Nummerierung: Themen in der Nav (`1. 2. 3.`), Unterthemen in der Sidebar (`1.1 1.2 ...`).
+- Pages sind per `React.lazy` + `Suspense` lazy geladen.
+- Section-Blöcke sind per `React.memo` gememoized für bessere Render-Performance.
 
 ## Stack
 
 - React 19
 - Vite 8
 - TypeScript 6
-- ESLint 9 (Vite Standard-Setup)
+- Mantine 9 (`@mantine/core`, `@mantine/hooks`)
+- React Router 7
+- ESLint 9
 
 ## Projektstart
 
@@ -37,54 +50,41 @@ pnpm lint
 
 ```text
 src/
-  components/
-    TopicCard.tsx          # Wiederverwendbare Themenkarte
+  context/
+    CodeLanguageContext.ts  # Globaler JS/TS-Toggle-State (React Context)
   data/
-    glossaryTopics.ts      # Platzhalter-Daten fuer Themen
+    glossaryTopics.ts       # Themen-Metadaten (Titel, Slug, Level, Status, Tags)
+    topicContent.ts         # Didaktische Inhalte inkl. JS/TS-Snippets und keywords
+  pages/
+    OverviewPage.tsx        # Themenübersicht mit klickbaren Karten
+    TopicDetailPage.tsx     # Detailansicht: fließende Sektionen, Sidebar, Memo-Blöcke
   types/
-    glossary.ts            # Zentrale Typdefinitionen
-  App.tsx                  # App-Komposition (Hero + Topic-Grid)
-  App.css                  # Komponentennahe Styles
-  index.css                # Globale Styles + Variablen
-  main.tsx                 # React Entry Point
+    glossary.ts             # Typdefinitionen für Themen
+    topicContent.ts         # Typdefinitionen für Inhaltssektionen (inkl. keywords)
+  App.tsx                   # Shell-Layout: linke Nav + Outlet + JS/TS-Toggle
+  App.css                   # Ergänzende Styles (Codeblock, TS-Diff, Prose)
+  index.css                 # Globale Farben, Hintergrund, Basis-Styles
+  main.tsx                  # App-Setup: Mantine, Router, lazy Pages, Suspense
 ```
 
-## Aktuelle Architekturentscheidungen
+## Aktuelle Routen
 
-- Daten sind bewusst lokal in TypeScript-Dateien gehalten, damit spaeter problemlos
-  ein API-Layer oder Markdown-/JSON-Import eingefuehrt werden kann.
-- Das UI ist absichtlich einfach und erweiterbar gehalten, aber bereits responsive.
-- Typen liegen zentral in `src/types`, damit spaetere Features konsistent bleiben.
+- `/` Übersicht mit allen vorbereiteten Themenkarten
+- `/thema/:slug` Detailansicht eines Themas
 
-## Guide Fuer Den Naechsten Agent
+## Inhalt ergänzen
 
-Ziel in den naechsten Schritten ist der schrittweise Ausbau vom Boilerplate zum
-vollstaendigen React-Nachschlagewerk. Empfohlene Reihenfolge:
+- Neue Sektionen in `src/data/topicContent.ts` unter dem passenden Slug ergänzen.
+- Jede Sektion kann optional ein `keywords`-Array für Schlagwort-Chips enthalten.
+- Für neue Top-Level-Themen zuerst `src/data/glossaryTopics.ts` erweitern (Nummerierung folgt automatisch).
+- Bei strukturellen Änderungen die README mitpflegen.
 
-1. Routing aufsetzen (z. B. React Router) mit Uebersichtsseite + Detailseiten pro Thema.
-2. Datenmodell erweitern (z. B. Kapitel, Lernziele, Codebeispiele, weiterfuehrende Links).
-3. Inhaltsquelle festlegen:
-   - kurz: weiter TypeScript-Daten
-   - mittel: Markdown-Dateien pro Thema
-   - spaeter: CMS/API
-4. Basis-Navigation und Suchfunktion vorbereiten (Client-seitiger Filter reicht anfangs).
-5. Testgrundlage ergaenzen (z. B. Vitest + Testing Library) sobald mehr Logik entsteht.
+## Readability-Entscheidungen
 
-## Konventionen
-
-- Sprache im Code: englische Symbolnamen.
-- Sprache im sichtbaren UI-Text: deutsch (wenn nicht anders gewuenscht).
-- Neue Themen nach Moeglichkeit ueber das Typmodell in `src/types/glossary.ts` fuehren.
-- Komponenten klein halten und in `src/components` ablegen.
-
-## Bekannte Offene Punkte
-
-- Kein Routing eingebaut.
-- Keine persistente Datenspeicherung.
-- Keine Tests vorhanden (bewusst in diesem Boilerplate-Stand).
-
-## Hinweise Zur Uebergabe
-
-- Diese README dient als Schnellstart fuer neue Agent-Sessions.
-- Bei strukturellen Aenderungen bitte diesen Abschnitt mitpflegen, damit der
-  Einstieg fuer den jeweils naechsten Agent schnell bleibt.
+- Farbschema: `#1b1b1f` Hintergrund, `#d4d6db` Fließtext – angelehnt an Vite-Docs, kein hartes Weiß.
+- Akzentfarbe: React-Cyan (`#4ec9e8`) für aktive Zustände, Interaktionselemente und TS-Diff.
+- Semantische Badge-Farben: Schwierigkeitsgrad (Teal/Orange/Rot), Status (Grau/Gelb/Grün).
+- Mantine-Transitions deaktiviert (`--mantine-transition-duration: 0ms`) für sofortiges UI-Feedback.
+- Section-Seitentitel: `gray.1`, Keywords: Cyan-Outline-Badges mit `opacity: 0.75`.
+- Lesefreundliche Zeilenlängen in Detailtexten (ca. 72 Zeichen via `.readable-prose`).
+- `scroll-margin-top: 32px` auf Sektions-Anchors für sauberes Anchor-Scrolling.
