@@ -4519,4 +4519,1047 @@ function App(): JSX.Element {
       },
     ],
   },
+  {
+    id: 'context-reducer',
+    title: 'Abschnitt 10: React\'s Context API & useReducer',
+    slug: 'context-reducer',
+    shortDescription: 'Prop Drilling lösen mit Context API und State-Logik strukturieren mit useReducer.',
+    lessons: [
+      {
+        id: 'cr-prop-drilling',
+        title: 'Prop Drilling – Problem & Lösungen',
+        duration: '11 Min.',
+        explanation: `**Prop Drilling** entsteht, wenn du Daten durch mehrere Komponenten-Ebenen hindurch reichen musst, obwohl nur eine tief verschachtelte Komponente sie tatsächlich braucht. Die Zwischenschichten werden unnötig mit Props belastet.
+
+**Beispiel**: \`App\` hat einen User → gibt ihn an \`Layout\` → gibt ihn an \`Sidebar\` → gibt ihn an \`UserAvatar\`. Nur \`UserAvatar\` braucht den User, aber alle Ebenen dazwischen müssen ihn weiterreichen.
+
+**Lösung 1 – Komposition**: Oft lässt sich Prop Drilling durch bessere Komposition vermeiden. Statt Daten nach unten zu reichen, kannst du fertig gerenderte Komponenten via \`children\` oder Slot-Props nach unten geben. Das ist die einfachste Lösung und sollte als Erstes versucht werden.
+
+**Lösung 2 – Context API**: Wenn Komposition nicht ausreicht (z. B. weil viele Komponenten auf denselben Wert zugreifen müssen), ist die Context API die richtige Wahl.`,
+        codeExamples: [
+          {
+            title: 'Prop Drilling – das Problem',
+            js: `// ❌ Prop Drilling: user wird durch jede Ebene durchgereicht
+function App() {
+  const [user, setUser] = useState({ name: 'Max', role: 'Admin' });
+  return <Layout user={user} />;
+}
+
+function Layout({ user }) {
+  return (
+    <div>
+      <Sidebar user={user} />
+      <main>Inhalt...</main>
+    </div>
+  );
+}
+
+function Sidebar({ user }) {
+  return (
+    <aside>
+      <UserAvatar user={user} />
+    </aside>
+  );
+}
+
+// Nur diese Komponente braucht user tatsächlich:
+function UserAvatar({ user }) {
+  return <img alt={user.name} />;
+}`,
+            ts: `type User = { name: string; role: string };
+
+// ❌ Prop Drilling: Jede Ebene muss user kennen und weiterreichen
+function App(): JSX.Element {
+  const [user] = useState<User>({ name: 'Max', role: 'Admin' });
+  return <Layout user={user} />;
+}
+
+function Layout({ user }: { user: User }) {
+  return (
+    <div>
+      <Sidebar user={user} />
+      <main>Inhalt...</main>
+    </div>
+  );
+}
+
+function Sidebar({ user }: { user: User }) {
+  return <aside><UserAvatar user={user} /></aside>;
+}
+
+function UserAvatar({ user }: { user: User }) {
+  return <img alt={user.name} />;
+}`,
+          },
+          {
+            title: 'Komposition als Lösung',
+            js: `// ✅ Komposition: Layout weiß nichts über UserAvatar
+function App() {
+  const [user, setUser] = useState({ name: 'Max', role: 'Admin' });
+
+  return (
+    <Layout
+      sidebar={<UserAvatar user={user} />}
+    >
+      <main>Inhalt...</main>
+    </Layout>
+  );
+}
+
+function Layout({ sidebar, children }) {
+  return (
+    <div>
+      <aside>{sidebar}</aside>
+      {children}
+    </div>
+  );
+}
+
+// UserAvatar bekommt seinen Prop direkt von App – kein Drilling
+function UserAvatar({ user }) {
+  return <img alt={user.name} />;
+}`,
+            ts: `import { type ReactNode } from 'react';
+
+type User = { name: string; role: string };
+
+type LayoutProps = {
+  sidebar: ReactNode;
+  children: ReactNode;
+};
+
+// ✅ Layout braucht user gar nicht zu kennen
+function App(): JSX.Element {
+  const [user] = useState<User>({ name: 'Max', role: 'Admin' });
+
+  return (
+    <Layout sidebar={<UserAvatar user={user} />}>
+      <main>Inhalt...</main>
+    </Layout>
+  );
+}
+
+function Layout({ sidebar, children }: LayoutProps) {
+  return (
+    <div>
+      <aside>{sidebar}</aside>
+      {children}
+    </div>
+  );
+}
+
+function UserAvatar({ user }: { user: User }) {
+  return <img alt={user.name} />;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'cr-context-api',
+        title: 'Context API – createContext, Provider & useContext',
+        duration: '26 Min.',
+        explanation: `Die **Context API** ermöglicht es, Werte im gesamten Komponentenbaum verfügbar zu machen – ohne Props manuell durch jede Ebene zu reichen.
+
+**Die drei Schritte**:
+1. **Context erstellen**: \`const MeinContext = createContext(defaultValue)\`
+2. **Provider bereitstellen**: Umhülle die Komponenten, die Zugriff brauchen, mit \`<MeinContext.Provider value={...}>\`
+3. **Context konsumieren**: In jeder beliebig tief verschachtelten Komponente mit \`useContext(MeinContext)\`
+
+**Wann updaten Context Werte?** Wenn der \`value\` des Providers sich ändert (z. B. weil State aktualisiert wird), rendern alle Komponenten neu, die diesen Context konsumieren.
+
+**Best Practice – Eigene Provider-Komponente**: Lagere Context-Definition und State-Logik in eine eigene Datei/Komponente aus (\`CartContext.tsx\`). Das hält \`App.tsx\` sauber und macht den Context wiederverwendbar.
+
+**useContext vs. Consumer**: \`useContext\` ist der moderne Weg. Das ältere \`<Context.Consumer>\` Render-Prop-Pattern ist veraltet.`,
+        codeExamples: [
+          {
+            title: 'Context erstellen & bereitstellen',
+            js: `import { createContext, useContext, useState } from 'react';
+
+// 1. Context erstellen
+const ThemeContext = createContext('light');
+
+// 2. Provider bereitstellen
+function App() {
+  const [theme, setTheme] = useState('light');
+
+  return (
+    <ThemeContext.Provider value={theme}>
+      <div>
+        <Header />
+        <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+          Theme wechseln
+        </button>
+      </div>
+    </ThemeContext.Provider>
+  );
+}
+
+// 3. Irgendwo tief im Baum – kein Prop Drilling nötig!
+function Header() {
+  return <nav><Logo /></nav>;
+}
+
+function Logo() {
+  // Direkt zugreifen, egal wie tief verschachtelt
+  const theme = useContext(ThemeContext);
+  return <span className={'logo logo--' + theme}>My App</span>;
+}`,
+            ts: `import { createContext, useContext, useState } from 'react';
+
+type Theme = 'light' | 'dark';
+
+// Default-Wert wird nur genutzt, wenn kein Provider vorhanden ist
+const ThemeContext = createContext<Theme>('light');
+
+function App(): JSX.Element {
+  const [theme, setTheme] = useState<Theme>('light');
+
+  return (
+    <ThemeContext.Provider value={theme}>
+      <div>
+        <Header />
+        <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+          Theme wechseln
+        </button>
+      </div>
+    </ThemeContext.Provider>
+  );
+}
+
+function Header(): JSX.Element {
+  return <nav><Logo /></nav>;
+}
+
+function Logo(): JSX.Element {
+  const theme = useContext(ThemeContext);
+  return <span className={'logo logo--' + theme}>My App</span>;
+}`,
+          },
+          {
+            title: 'Context mit State verknüpfen – Provider-Komponente',
+            js: `import { createContext, useContext, useState } from 'react';
+
+// Alles in einer Datei: CartContext.jsx
+const CartContext = createContext(null);
+
+// Eigene Provider-Komponente – kapselt State + Context
+export function CartProvider({ children }) {
+  const [items, setItems] = useState([]);
+
+  function addItem(product) {
+    setItems(prev => [...prev, product]);
+  }
+
+  function removeItem(id) {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }
+
+  return (
+    <CartContext.Provider value={{ items, addItem, removeItem }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+// Eigener Hook – kein useContext(CartContext) überall
+export function useCart() {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error('useCart muss innerhalb von CartProvider verwendet werden');
+  return ctx;
+}
+
+// App.jsx – sauber, keine Context-Logik hier
+// import { CartProvider } from './context/CartContext';
+//
+// function App() {
+//   return (
+//     <CartProvider>
+//       <Shop />
+//     </CartProvider>
+//   );
+// }
+
+// In einer beliebigen Kind-Komponente:
+function CartIcon() {
+  const { items } = useCart();
+  return <span>Warenkorb ({items.length})</span>;
+}`,
+            ts: `import { createContext, useContext, useState, type ReactNode } from 'react';
+
+type Product = { id: string; name: string; price: number };
+type CartContextType = {
+  items: Product[];
+  addItem: (product: Product) => void;
+  removeItem: (id: string) => void;
+};
+
+const CartContext = createContext<CartContextType | null>(null);
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<Product[]>([]);
+
+  function addItem(product: Product): void {
+    setItems(prev => [...prev, product]);
+  }
+
+  function removeItem(id: string): void {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }
+
+  return (
+    <CartContext.Provider value={{ items, addItem, removeItem }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+// Eigener Hook mit Null-Guard
+export function useCart(): CartContextType {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error('useCart muss innerhalb von CartProvider verwendet werden');
+  return ctx;
+}
+
+// Verwendung in einer Kind-Komponente:
+function CartIcon(): JSX.Element {
+  const { items } = useCart();
+  return <span>Warenkorb ({items.length})</span>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'cr-use-reducer',
+        title: 'useReducer – State-Logik strukturieren',
+        duration: '20 Min.',
+        explanation: `**\`useReducer\`** ist eine Alternative zu \`useState\` für **komplexe State-Logik**. Statt den State direkt zu setzen, **dispatcht** du eine Aktion – eine bloße Beschreibung was passieren soll. Eine reine Funktion (**Reducer**) berechnet daraus den neuen State.
+
+Das Muster kommt aus dem Flux/Redux-Pattern:
+- **State**: Der aktuelle Zustand.
+- **Action**: Ein Objekt, das beschreibt, was passiert (\`{ type: 'INCREMENT' }\`).
+- **Reducer**: \`(state, action) => newState\` – eine **pure Funktion**, die den neuen State berechnet.
+- **dispatch**: Sendet eine Aktion an den Reducer.
+
+**Wann \`useReducer\` statt \`useState\`?**
+- Mehrere zusammenhängende State-Werte, die gemeinsam aktualisiert werden
+- Komplexe Update-Logik mit vielen Fällen
+- Wenn der nächste State von mehreren Teilen des alten States abhängt
+- Du willst die State-Logik vom JSX trennen und testen
+
+**useReducer + Context** ist eine leistungsstarke Kombination: Context verteilt den State, useReducer verwaltet die Logik.`,
+        codeExamples: [
+          {
+            title: 'useReducer – Grundprinzip',
+            js: `import { useReducer } from 'react';
+
+// Reducer: pure Funktion, kein this, kein Seiteneffekt
+function counterReducer(state, action) {
+  switch (action.type) {
+    case 'INCREMENT':
+      return { count: state.count + 1 };
+    case 'DECREMENT':
+      return { count: state.count - 1 };
+    case 'RESET':
+      return { count: 0 };
+    case 'SET':
+      return { count: action.payload };
+    default:
+      return state;
+  }
+}
+
+function Counter() {
+  const [state, dispatch] = useReducer(counterReducer, { count: 0 });
+
+  return (
+    <div>
+      <p>Zähler: {state.count}</p>
+      <button onClick={() => dispatch({ type: 'INCREMENT' })}>+1</button>
+      <button onClick={() => dispatch({ type: 'DECREMENT' })}>-1</button>
+      <button onClick={() => dispatch({ type: 'RESET' })}>Reset</button>
+      <button onClick={() => dispatch({ type: 'SET', payload: 10 })}>Auf 10</button>
+    </div>
+  );
+}`,
+            ts: `import { useReducer } from 'react';
+
+type CounterState = { count: number };
+type CounterAction =
+  | { type: 'INCREMENT' }
+  | { type: 'DECREMENT' }
+  | { type: 'RESET' }
+  | { type: 'SET'; payload: number };
+
+function counterReducer(state: CounterState, action: CounterAction): CounterState {
+  switch (action.type) {
+    case 'INCREMENT':
+      return { count: state.count + 1 };
+    case 'DECREMENT':
+      return { count: state.count - 1 };
+    case 'RESET':
+      return { count: 0 };
+    case 'SET':
+      return { count: action.payload };
+    default:
+      return state;
+  }
+}
+
+function Counter(): JSX.Element {
+  const [state, dispatch] = useReducer(counterReducer, { count: 0 });
+
+  return (
+    <div>
+      <p>Zähler: {state.count}</p>
+      <button onClick={() => dispatch({ type: 'INCREMENT' })}>+1</button>
+      <button onClick={() => dispatch({ type: 'DECREMENT' })}>-1</button>
+      <button onClick={() => dispatch({ type: 'RESET' })}>Reset</button>
+      <button onClick={() => dispatch({ type: 'SET', payload: 10 })}>Auf 10</button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'useReducer + Context kombinieren',
+            js: `import { createContext, useContext, useReducer } from 'react';
+
+// Warenkorb-Logik mit useReducer
+function cartReducer(state, action) {
+  switch (action.type) {
+    case 'ADD_ITEM':
+      return { ...state, items: [...state.items, action.item] };
+    case 'REMOVE_ITEM':
+      return {
+        ...state,
+        items: state.items.filter(i => i.id !== action.id),
+      };
+    case 'CLEAR':
+      return { ...state, items: [] };
+    default:
+      return state;
+  }
+}
+
+const CartContext = createContext(null);
+
+export function CartProvider({ children }) {
+  const [cartState, dispatch] = useReducer(cartReducer, { items: [] });
+
+  function addItem(item) {
+    dispatch({ type: 'ADD_ITEM', item });
+  }
+
+  function removeItem(id) {
+    dispatch({ type: 'REMOVE_ITEM', id });
+  }
+
+  function clearCart() {
+    dispatch({ type: 'CLEAR' });
+  }
+
+  return (
+    <CartContext.Provider value={{ ...cartState, addItem, removeItem, clearCart }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+export const useCart = () => useContext(CartContext);`,
+            ts: `import { createContext, useContext, useReducer, type ReactNode } from 'react';
+
+type CartItem = { id: string; name: string; price: number };
+type CartState = { items: CartItem[] };
+type CartAction =
+  | { type: 'ADD_ITEM'; item: CartItem }
+  | { type: 'REMOVE_ITEM'; id: string }
+  | { type: 'CLEAR' };
+
+function cartReducer(state: CartState, action: CartAction): CartState {
+  switch (action.type) {
+    case 'ADD_ITEM':
+      return { ...state, items: [...state.items, action.item] };
+    case 'REMOVE_ITEM':
+      return { ...state, items: state.items.filter(i => i.id !== action.id) };
+    case 'CLEAR':
+      return { ...state, items: [] };
+    default:
+      return state;
+  }
+}
+
+type CartContextType = CartState & {
+  addItem: (item: CartItem) => void;
+  removeItem: (id: string) => void;
+  clearCart: () => void;
+};
+
+const CartContext = createContext<CartContextType | null>(null);
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [cartState, dispatch] = useReducer(cartReducer, { items: [] });
+
+  const addItem = (item: CartItem) => dispatch({ type: 'ADD_ITEM', item });
+  const removeItem = (id: string) => dispatch({ type: 'REMOVE_ITEM', id });
+  const clearCart = () => dispatch({ type: 'CLEAR' });
+
+  return (
+    <CartContext.Provider value={{ ...cartState, addItem, removeItem, clearCart }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+export function useCart(): CartContextType {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error('useCart muss innerhalb von CartProvider verwendet werden');
+  return ctx;
+}`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'use-effect',
+    title: 'Abschnitt 11: Handling Side Effects & useEffect',
+    slug: 'use-effect',
+    shortDescription: 'Side Effects verstehen, useEffect richtig einsetzen, Cleanup-Funktionen und useCallback.',
+    lessons: [
+      {
+        id: 'ue-what-are-side-effects',
+        title: 'Was sind Side Effects – & wann brauchst du useEffect?',
+        duration: '15 Min.',
+        explanation: `**Side Effects** sind alles, was eine Komponente tut, das über das reine Berechnen und Zurückgeben von JSX hinausgeht:
+
+- HTTP-Requests (Daten laden)
+- Timer setzen (\`setTimeout\`, \`setInterval\`)
+- Browser-APIs nutzen (\`localStorage\`, \`document.title\`)
+- Event Listener registrieren
+- Externe Subscriptions (WebSocket, etc.)
+
+**Das Problem**: React ruft Komponentenfunktionen **mehrmals** auf (beim Rendern, Re-Rendern, Strict Mode). Ein Seiteneffekt direkt im Render-Body würde bei jedem Render ausgeführt – und wenn er State verändert, löst das den nächsten Render aus → **Endlosschleife**.
+
+**Die Lösung: \`useEffect\`**. Damit sagst du React: „Führe diesen Code **nach** dem Rendern aus." Der optionale Dependency-Array steuert, **wann** der Effekt erneut läuft.
+
+**Aber**: Nicht jeder Seiteneffekt braucht \`useEffect\`! Viele lassen sich direkt in Event-Handlern ausführen – das ist sogar **bevorzugt**, weil es klarer ist.`,
+        codeExamples: [
+          {
+            title: 'Das Infinite-Loop-Problem',
+            js: `import { useState, useEffect } from 'react';
+
+// ❌ Seiteneffekt direkt im Render-Body → Endlosschleife!
+function BadComponent() {
+  const [data, setData] = useState(null);
+
+  // Wird bei jedem Render aufgerufen, setzt State, triggert Re-Render...
+  fetch('/api/data')
+    .then(r => r.json())
+    .then(d => setData(d)); // → Endlosschleife!
+
+  return <p>{data}</p>;
+}
+
+// ✅ Lösung: useEffect – läuft nur einmal (leeres Dependency-Array)
+function GoodComponent() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(d => setData(d));
+  }, []); // [] → nur beim ersten Mounten
+
+  return <p>{data?.message ?? 'Laden...'}</p>;
+}`,
+            ts: `import { useState, useEffect } from 'react';
+
+type ApiData = { message: string };
+
+// ✅ useEffect verhindert die Endlosschleife
+function DataLoader(): JSX.Element {
+  const [data, setData] = useState<ApiData | null>(null);
+
+  useEffect(() => {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then((d: ApiData) => setData(d));
+  }, []); // Leeres Array: läuft nur beim Mounten
+
+  return <p>{data?.message ?? 'Laden...'}</p>;
+}`,
+          },
+          {
+            title: 'Nicht immer useEffect nötig',
+            js: `import { useState, useEffect } from 'react';
+
+// ❌ Unnötiger useEffect – State aus State ableiten
+function SearchResults({ query }) {
+  const [results, setResults] = useState([]);
+
+  // ❌ Seiteneffekt nur um State zu synchronisieren
+  useEffect(() => {
+    setResults(PRODUCTS.filter(p => p.name.includes(query)));
+  }, [query]);
+
+  return <ul>{results.map(r => <li key={r.id}>{r.name}</li>)}</ul>;
+}
+
+// ✅ Besser: direkt berechnen – kein useEffect nötig
+function SearchResultsBetter({ query }) {
+  // Abgeleiteter Wert → kein separater State, kein useEffect
+  const results = PRODUCTS.filter(p => p.name.includes(query));
+
+  return <ul>{results.map(r => <li key={r.id}>{r.name}</li>)}</ul>;
+}
+
+// ✅ Seiteneffekt im Event-Handler ist oft besser als useEffect
+function SaveButton() {
+  function handleSave() {
+    // Direkt hier – klar und vorhersehbar
+    localStorage.setItem('draft', JSON.stringify(formData));
+  }
+
+  return <button onClick={handleSave}>Speichern</button>;
+}`,
+            ts: `import { useState, useEffect } from 'react';
+
+type Product = { id: string; name: string };
+const PRODUCTS: Product[] = [];
+
+// ✅ Abgeleiteter Wert – kein useEffect nötig
+function SearchResults({ query }: { query: string }): JSX.Element {
+  const results = PRODUCTS.filter(p => p.name.includes(query));
+
+  return (
+    <ul>
+      {results.map(r => <li key={r.id}>{r.name}</li>)}
+    </ul>
+  );
+}
+
+// ✅ Seiteneffekt direkt im Handler
+function SaveButton({ data }: { data: object }): JSX.Element {
+  function handleSave(): void {
+    localStorage.setItem('draft', JSON.stringify(data));
+  }
+
+  return <button onClick={handleSave}>Speichern</button>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'ue-dependencies',
+        title: 'Effect Dependencies & Browser APIs synchronisieren',
+        duration: '10 Min.',
+        explanation: `Der **Dependency-Array** von \`useEffect\` bestimmt, wann der Effekt erneut ausgeführt wird:
+
+| Dependency-Array | Wann läuft der Effekt? |
+|---|---|
+| Kein Array | Nach **jedem** Render |
+| \`[]\` (leer) | Nur einmal – nach dem ersten Render (Mount) |
+| \`[a, b]\` | Beim Mount + immer wenn sich \`a\` oder \`b\` ändert |
+
+**Regel**: Jeder Wert aus dem Komponenten-Scope, den du im Effekt verwendest (State, Props, abgeleitete Werte), muss in den Dependency-Array. Der **ESLint-Plugin \`exhaustive-deps\`** hilft dabei und warnt bei fehlenden Dependencies.
+
+**Typischer Einsatz für Browser APIs**: \`document.title\` setzen, \`localStorage\` lesen beim Mounten, oder auf Resize-Events reagieren.`,
+        codeExamples: [
+          {
+            title: 'Dependency-Array korrekt verwenden',
+            js: `import { useState, useEffect } from 'react';
+
+function ProductPage({ productId }) {
+  const [product, setProduct] = useState(null);
+
+  // Läuft beim Mounten UND wenn sich productId ändert
+  useEffect(() => {
+    fetch('/api/products/' + productId)
+      .then(r => r.json())
+      .then(setProduct);
+  }, [productId]); // productId als Dependency!
+
+  return <p>{product?.name ?? 'Laden...'}</p>;
+}
+
+// Häufiger Fehler: fehlende Dependency
+function BadEffect({ userId }) {
+  useEffect(() => {
+    // userId wird verwendet, aber fehlt im Array → Bug!
+    // → Effekt läuft nie erneut, auch wenn userId sich ändert
+    console.log('User:', userId);
+  }, []); // ❌ userId fehlt
+}`,
+            ts: `import { useState, useEffect } from 'react';
+
+type Product = { id: string; name: string };
+
+function ProductPage({ productId }: { productId: string }): JSX.Element {
+  const [product, setProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    fetch('/api/products/' + productId)
+      .then(r => r.json())
+      .then((p: Product) => setProduct(p));
+  }, [productId]); // ✅ productId als Dependency
+
+  return <p>{product?.name ?? 'Laden...'}</p>;
+}`,
+          },
+          {
+            title: 'Browser APIs synchronisieren',
+            js: `import { useState, useEffect } from 'react';
+
+// document.title synchronisieren
+function PageWithTitle({ title, children }) {
+  useEffect(() => {
+    document.title = title + ' | Meine App';
+
+    // Cleanup: Titel zurücksetzen wenn Komponente entfernt wird
+    return () => {
+      document.title = 'Meine App';
+    };
+  }, [title]);
+
+  return <main>{children}</main>;
+}
+
+// localStorage beim Mounten lesen
+function Settings() {
+  const [darkMode, setDarkMode] = useState(false);
+
+  // Gespeicherten Wert beim Mounten laden
+  useEffect(() => {
+    const saved = localStorage.getItem('darkMode');
+    if (saved !== null) {
+      setDarkMode(JSON.parse(saved));
+    }
+  }, []); // Nur einmal
+
+  // Bei Änderung speichern – direkt im Handler, kein useEffect nötig
+  function handleToggle() {
+    const next = !darkMode;
+    setDarkMode(next);
+    localStorage.setItem('darkMode', JSON.stringify(next));
+  }
+
+  return (
+    <label>
+      <input type="checkbox" checked={darkMode} onChange={handleToggle} />
+      Dark Mode
+    </label>
+  );
+}`,
+            ts: `import { useState, useEffect } from 'react';
+import { type ReactNode } from 'react';
+
+function PageWithTitle({ title, children }: { title: string; children: ReactNode }): JSX.Element {
+  useEffect(() => {
+    document.title = title + ' | Meine App';
+    return () => { document.title = 'Meine App'; };
+  }, [title]);
+
+  return <main>{children}</main>;
+}
+
+function Settings(): JSX.Element {
+  const [darkMode, setDarkMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('darkMode');
+    if (saved !== null) setDarkMode(JSON.parse(saved) as boolean);
+  }, []);
+
+  function handleToggle(): void {
+    const next = !darkMode;
+    setDarkMode(next);
+    localStorage.setItem('darkMode', JSON.stringify(next));
+  }
+
+  return (
+    <label>
+      <input type="checkbox" checked={darkMode} onChange={handleToggle} />
+      Dark Mode
+    </label>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'ue-cleanup',
+        title: 'Cleanup-Funktion & das Problem mit Objekt/Funktions-Dependencies',
+        duration: '17 Min.',
+        explanation: `**Die Cleanup-Funktion**: Wenn dein Effekt Ressourcen belegt (Timer, Event Listener, Subscriptions), musst du diese in der **Cleanup-Funktion** freigeben. React ruft sie auf, bevor der Effekt erneut läuft und wenn die Komponente entfernt wird.
+
+**Ohne Cleanup**:
+- Timer laufen weiter, obwohl die Komponente weg ist
+- Event Listener stapeln sich bei jedem Re-Render
+- Memory Leaks
+
+**Das Problem mit Objekt & Funktions-Dependencies**: Referenztypen (Objekte, Arrays, Funktionen) werden bei jedem Render **neu erstellt** – sie sind damit immer „anders" für React, auch wenn ihr Inhalt gleich ist. Das führt dazu, dass der Effekt zu oft läuft.
+
+**Die Lösung: \`useCallback\`**: Memorisiert eine Funktion – sie wird nur dann neu erstellt, wenn sich ihre eigenen Dependencies ändern. Damit ist die Funktion referenzstabil und löst keinen unnötigen Effekt-Neustart aus.`,
+        codeExamples: [
+          {
+            title: 'Cleanup für Timer & Event Listener',
+            js: `import { useState, useEffect } from 'react';
+
+// Timer-Cleanup
+function Countdown({ seconds }) {
+  const [remaining, setRemaining] = useState(seconds);
+
+  useEffect(() => {
+    if (remaining <= 0) return;
+
+    const timerId = setInterval(() => {
+      setRemaining(prev => prev - 1);
+    }, 1000);
+
+    // Cleanup: Timer stoppen wenn Komponente entfernt wird
+    // oder wenn 'remaining' sich ändert (neuer Interval startet)
+    return () => clearInterval(timerId);
+  }, [remaining]);
+
+  return <p>{remaining > 0 ? remaining + ' Sekunden' : 'Zeit abgelaufen!'}</p>;
+}
+
+// Event-Listener-Cleanup
+function WindowSize() {
+  const [size, setSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup: Listener entfernen
+    return () => window.removeEventListener('resize', handleResize);
+  }, []); // Einmal registrieren, einmal entfernen
+
+  return <p>{size.width} × {size.height}</p>;
+}`,
+            ts: `import { useState, useEffect } from 'react';
+
+function Countdown({ seconds }: { seconds: number }): JSX.Element {
+  const [remaining, setRemaining] = useState<number>(seconds);
+
+  useEffect(() => {
+    if (remaining <= 0) return;
+    const timerId = setInterval(() => {
+      setRemaining(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timerId);
+  }, [remaining]);
+
+  return <p>{remaining > 0 ? remaining + ' Sekunden' : 'Zeit abgelaufen!'}</p>;
+}
+
+type Size = { width: number; height: number };
+
+function WindowSize(): JSX.Element {
+  const [size, setSize] = useState<Size>({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  useEffect(() => {
+    function handleResize(): void {
+      setSize({ width: window.innerWidth, height: window.innerHeight });
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return <p>{size.width} × {size.height}</p>;
+}`,
+          },
+          {
+            title: 'useCallback – stabile Funktions-Referenzen',
+            js: `import { useState, useEffect, useCallback } from 'react';
+
+// ❌ Problem: fetchData wird bei jedem Render neu erstellt
+//    → useEffect läuft endlos!
+function DataLoader({ userId }) {
+  const [data, setData] = useState(null);
+
+  // Diese Funktion ist bei jedem Render eine NEUE Referenz
+  const fetchData = async () => {
+    const r = await fetch('/api/user/' + userId);
+    setData(await r.json());
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); // ❌ fetchData ändert sich immer → Endlosschleife!
+}
+
+// ✅ Lösung 1: Funktion direkt in useEffect definieren
+function DataLoaderV2({ userId }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    async function load() {
+      const r = await fetch('/api/user/' + userId);
+      setData(await r.json());
+    }
+    load();
+  }, [userId]); // Nur userId als Dependency
+
+  return <p>{data?.name ?? 'Laden...'}</p>;
+}
+
+// ✅ Lösung 2: useCallback – Funktion memorisieren
+function DataLoaderV3({ userId }) {
+  const [data, setData] = useState(null);
+
+  // Wird nur neu erstellt wenn userId sich ändert
+  const fetchData = useCallback(async () => {
+    const r = await fetch('/api/user/' + userId);
+    setData(await r.json());
+  }, [userId]); // ← Dependencies von fetchData
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); // ✅ fetchData ist jetzt stabil
+
+  return <p>{data?.name ?? 'Laden...'}</p>;
+}`,
+            ts: `import { useState, useEffect, useCallback } from 'react';
+
+type User = { name: string };
+
+// ✅ Lösung 1: Funktion direkt im Effekt definieren (meist bevorzugt)
+function DataLoader({ userId }: { userId: string }): JSX.Element {
+  const [data, setData] = useState<User | null>(null);
+
+  useEffect(() => {
+    async function load(): Promise<void> {
+      const r = await fetch('/api/user/' + userId);
+      setData(await r.json() as User);
+    }
+    load();
+  }, [userId]);
+
+  return <p>{data?.name ?? 'Laden...'}</p>;
+}
+
+// ✅ Lösung 2: useCallback für wiederverwendbare Fetch-Funktionen
+function DataLoaderWithCallback({ userId }: { userId: string }): JSX.Element {
+  const [data, setData] = useState<User | null>(null);
+
+  const fetchData = useCallback(async (): Promise<void> => {
+    const r = await fetch('/api/user/' + userId);
+    setData(await r.json() as User);
+  }, [userId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return <p>{data?.name ?? 'Laden...'}</p>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'ue-state-updates',
+        title: 'State-Updates optimieren & Batching',
+        duration: '4 Min.',
+        explanation: `React **batcht** mehrere \`setState\`-Aufrufe, die in einem Event-Handler oder \`useEffect\` passieren, zu einem einzigen Re-Render zusammen. Das ist eine Optimierung, die du als Entwickler meistens gar nicht bemerken musst.
+
+**Aber**: Wenn du State innerhalb eines \`useEffect\` aktualisierst und dieser State selbst im Dependency-Array steht, kann es zu ungewollten Render-Schleifen kommen.
+
+**Best Practice für State-Updates im Effekt**:
+- Nutze die **Updater-Funktion** (\`setState(prev => ...)\`), wenn der neue State vom alten abhängt
+- Vermeide es, denselben State zu lesen **und** zu setzen im gleichen Effekt – das lädt zu Zyklen ein
+- Ziehe State-Berechnungen aus dem Effekt heraus, wenn sie sich ableiten lassen`,
+        codeExamples: [
+          {
+            title: 'React Batching & Updater-Funktion im Effekt',
+            js: `import { useState, useEffect } from 'react';
+
+// React batcht diese Updates – nur EIN Re-Render
+function BatchExample() {
+  const [count, setCount] = useState(0);
+  const [text, setText] = useState('');
+
+  function handleClick() {
+    // Beide setStates werden gebatcht → 1 Re-Render
+    setCount(c => c + 1);
+    setText('Geklickt: ' + (count + 1));
+  }
+
+  return <button onClick={handleClick}>{text || count}</button>;
+}
+
+// Effekt-State-Update: Updater-Funktion nutzen
+function TickingClock() {
+  const [ticks, setTicks] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      // ✅ Updater-Funktion: liest nicht den State aus dem Closure
+      // → ticks muss nicht in den Dependency-Array!
+      setTicks(prev => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, []); // ✅ Kein ticks im Array nötig
+
+  return <p>Ticks: {ticks}</p>;
+}
+
+// ❌ Häufiger Fehler: State lesen UND setzen im Effekt
+function BadTicker() {
+  const [ticks, setTicks] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTicks(ticks + 1); // ❌ Liest ticks aus Closure → veraltet!
+    }, 1000);
+    return () => clearInterval(id);
+  }, [ticks]); // ❌ ticks als Dep → Effect startet bei jedem Tick neu
+
+  return <p>Ticks: {ticks}</p>;
+}`,
+            ts: `import { useState, useEffect } from 'react';
+
+// ✅ Updater-Funktion im Effekt – kein State in Dependency-Array
+function TickingClock(): JSX.Element {
+  const [ticks, setTicks] = useState<number>(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      // prev → immer der aktuelle Wert, egal wann der Effekt gestartet ist
+      setTicks(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []); // Einmalig – kein ticks als Dep nötig
+
+  return <p>Ticks: {ticks}</p>;
+}
+
+// Batching: Mehrere setState-Aufrufe → ein Re-Render
+function BatchExample(): JSX.Element {
+  const [count, setCount] = useState<number>(0);
+  const [label, setLabel] = useState<string>('');
+
+  function handleClick(): void {
+    setCount(c => c + 1);
+    setLabel(prev => 'War: ' + prev);
+    // React rendert nur einmal, beide Updates werden gebatcht
+  }
+
+  return <button onClick={handleClick}>{label || count}</button>;
+}`,
+          },
+        ],
+      },
+    ],
+  },
 ]

@@ -46,7 +46,7 @@ export function CodeToggle({ example }: CodeToggleProps) {
         </button>
       </div>
       <SyntaxHighlighter
-        language={lang === "js" ? "javascript" : "typescript"}
+        language={lang === "js" ? "jsx" : "tsx"}
         style={syntaxStyle}
         showLineNumbers
         lineNumberStyle={{

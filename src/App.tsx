@@ -7,8 +7,8 @@ function App() {
   const [activeLessonId, setActiveLessonId] = useState(
     chapters[0]?.lessons[0]?.id ?? "",
   );
-  const [openChapters, setOpenChapters] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(chapters.map((c) => [c.id, true])),
+  const [openChapterId, setOpenChapterId] = useState<string>(
+    chapters[0]?.id ?? "",
   );
 
   const activeLesson = chapters
@@ -16,7 +16,7 @@ function App() {
     .find((l) => l.id === activeLessonId);
 
   const toggleChapter = (id: string) => {
-    setOpenChapters((prev) => ({ ...prev, [id]: !prev[id] }));
+    setOpenChapterId((prev) => (prev === id ? "" : id));
   };
 
   return (
@@ -30,14 +30,16 @@ function App() {
           {chapters.map((chapter) => (
             <div key={chapter.id} className="docs-sidebar__section">
               <button
-                className={`docs-sidebar__chapter ${openChapters[chapter.id] ? "is-open" : ""}`}
+                className={`docs-sidebar__chapter ${openChapterId === chapter.id ? "is-open" : ""}`}
                 onClick={() => toggleChapter(chapter.id)}
               >
                 <span className="docs-sidebar__chapter-label">
                   <span className="docs-sidebar__chapter-num">
                     {chapter.title.match(/\d+/)?.[0]}
                   </span>
-                  <span>{chapter.title.replace(/^Abschnitt\s*\d+:\s*/, '')}</span>
+                  <span>
+                    {chapter.title.replace(/^Abschnitt\s*\d+:\s*/, "")}
+                  </span>
                 </span>
                 <svg
                   className="docs-sidebar__chevron"
@@ -56,7 +58,9 @@ function App() {
                 </svg>
               </button>
 
-              {openChapters[chapter.id] && (
+              <div
+                className={`docs-sidebar__collapse${openChapterId === chapter.id ? " is-open" : ""}`}
+              >
                 <ul className="docs-sidebar__lessons">
                   {chapter.lessons.map((lesson) => (
                     <li key={lesson.id}>
@@ -73,7 +77,7 @@ function App() {
                     </li>
                   ))}
                 </ul>
-              )}
+              </div>
             </div>
           ))}
         </nav>

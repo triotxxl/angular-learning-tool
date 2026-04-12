@@ -146,11 +146,26 @@
   transform: rotate(90deg);
 }
 
+.docs-sidebar__collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms ease;
+
+  &.is-open {
+    grid-template-rows: 1fr;
+  }
+}
+
 .docs-sidebar__lessons {
   list-style: none;
-  margin: 2px 0 8px;
+  margin: 0;
   padding: 0 0 0 12px;
   border-left: 1px solid var(--color-border);
+  overflow: hidden;
+
+  .is-open > & {
+    margin: 2px 0 8px;
+  }
 }
 
 .docs-sidebar__link {
