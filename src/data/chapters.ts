@@ -8525,4 +8525,2757 @@ export default Blog;`,
       },
     ],
   },
+  {
+    id: 'authentication',
+    title: 'Abschnitt 23: Authentication in React Apps',
+    slug: 'authentication',
+    shortDescription: 'Token-basierte Authentifizierung mit React Router: Login/Logout, geschützte Routen, Token-Verwaltung und automatisches Ablaufen.',
+    lessons: [
+      {
+        id: 'auth-concepts',
+        title: 'Wie Authentifizierung funktioniert',
+        duration: '9 Min.',
+        explanation: `In Single-Page-Apps gibt es zwei verbreitete Auth-Konzepte:
+
+**1. Server-Side Sessions**
+Der Server erstellt nach dem Login eine Session und speichert sie. Der Client erhält eine Session-ID (meist als Cookie). Bei jeder Anfrage schickt der Browser den Cookie mit – der Server prüft die ID gegen seine Session-Datenbank.
+
+**2. JSON Web Tokens (JWT)** ← in React-Apps Standard
+Der Server erstellt nach erfolgreichem Login ein **signiertes Token** (JWT) und schickt es zurück. Der Client speichert es (z. B. in \`localStorage\`) und schickt es bei jeder Anfrage im \`Authorization\`-Header mit.
+
+\`\`\`
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5...
+\`\`\`
+
+Der Server muss **keine Session-Datenbank** führen – er verifiziert das Token mit seinem geheimen Schlüssel. Das macht JWTs gut skalierbar.
+
+**JWT-Aufbau:**
+\`\`\`
+Header.Payload.Signature
+\`\`\`
+- **Header**: Algorithmus (z. B. HS256)
+- **Payload**: Daten (userId, email, Ablaufzeit) – Base64-kodiert, **nicht verschlüsselt**
+- **Signature**: HMAC des Headers + Payload, signiert mit dem Server-Secret
+
+→ Das Token kann jeder lesen, aber nicht fälschen (ohne das Secret).`,
+        codeExamples: [
+          {
+            title: 'JWT dekodieren (nur zur Veranschaulichung)',
+            js: `// JWT besteht aus 3 Base64url-kodierten Teilen
+const token = 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiIxMjMiLCJleHAiOjE3MDAwMDAwMDB9.abc';
+
+const [header, payload, signature] = token.split('.');
+
+// Payload dekodieren (öffentlich lesbar – kein Geheimnis!)
+const decoded = JSON.parse(atob(payload));
+console.log(decoded);
+// { userId: "123", exp: 1700000000 }
+
+// Prüfen ob das Token abgelaufen ist
+const isExpired = decoded.exp * 1000 < Date.now();
+console.log('Abgelaufen:', isExpired);
+
+// WICHTIG: Diese Prüfung ist nur client-seitig (UI-Feedback).
+// Die echte Validierung macht immer der Server.`,
+            ts: `interface JwtPayload {
+  userId: string;
+  email?: string;
+  exp: number;  // Unix-Timestamp (Sekunden)
+}
+
+function decodeToken(token: string): JwtPayload | null {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload)) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token: string): boolean {
+  const decoded = decodeToken(token);
+  if (!decoded) return true;
+  return decoded.exp * 1000 < Date.now();
+}
+
+const token = localStorage.getItem('authToken') ?? '';
+console.log('Abgelaufen:', isTokenExpired(token));`,
+          },
+        ],
+      },
+      {
+        id: 'auth-login-logout',
+        title: 'Login, Logout & Token-Verwaltung',
+        duration: '35 Min.',
+        explanation: `**Login-Flow mit React Router:**
+1. Formular sendet Credentials an eine Route-\`action()\`
+2. Die Action schickt einen POST-Request an die Backend-API
+3. Backend antwortet mit einem JWT → Token in \`localStorage\` speichern
+4. \`redirect()\` zur geschützten Seite
+
+**Logout:**
+Token aus \`localStorage\` löschen und zur Login-Seite weiterleiten.
+
+**Query-Parameter für Modustrennung:**
+Login und Registrierung lassen sich in einer einzigen Route/Komponente abhandeln – ein Query-Parameter (\`?mode=login\` vs. \`?mode=signup\`) bestimmt, was gesendet wird.
+
+\`useSearchParams()\` liest und setzt Query-Parameter.
+
+**UI-Zustand basierend auf Auth-Status:**
+Ein Loader auf Root-Ebene liest das Token aus \`localStorage\` und gibt es zurück – alle Komponenten können per \`useRouteLoaderData('root')\` darauf zugreifen, um Nav-Links bedingt zu rendern.`,
+        codeExamples: [
+          {
+            title: 'Auth-Action, Token speichern & Query-Parameter',
+            js: `// pages/Auth.jsx
+import { Form, Link, useSearchParams, useActionData } from 'react-router-dom';
+
+// ① Query-Parameter lesen: ?mode=login oder ?mode=signup
+function AuthPage() {
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') ?? 'login';
+  const isLogin = mode === 'login';
+  const errors = useActionData();
+
+  return (
+    <Form method="post">
+      <h1>{isLogin ? 'Anmelden' : 'Registrieren'}</h1>
+      <label>
+        E-Mail
+        <input type="email" name="email" required />
+      </label>
+      <label>
+        Passwort
+        <input type="password" name="password" required />
+      </label>
+      {errors && <ul>{Object.values(errors).map((e) => <li key={e}>{e}</li>)}</ul>}
+      <button type="submit">{isLogin ? 'Anmelden' : 'Registrieren'}</button>
+      <Link to={\`?mode=\${isLogin ? 'signup' : 'login'}\`}>
+        {isLogin ? 'Noch kein Konto? Registrieren' : 'Bereits registriert? Anmelden'}
+      </Link>
+    </Form>
+  );
+}
+
+export default AuthPage;
+
+// ② Action: Login oder Signup je nach mode
+import { redirect } from 'react-router-dom';
+
+export async function action({ request }) {
+  const searchParams = new URL(request.url).searchParams;
+  const mode = searchParams.get('mode') ?? 'login';
+
+  const formData = await request.formData();
+  const email = formData.get('email');
+  const password = formData.get('password');
+
+  const res = await fetch(\`https://my-api.com/auth/\${mode}\`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (res.status === 422) {
+    return await res.json(); // Validierungsfehler zurückgeben
+  }
+  if (!res.ok) throw new Response('Authentifizierung fehlgeschlagen', { status: 500 });
+
+  const { token } = await res.json();
+  localStorage.setItem('authToken', token);        // Token speichern
+  localStorage.setItem('tokenExpiry', Date.now() + 60 * 60 * 1000); // 1h
+
+  return redirect('/dashboard');
+}
+
+// ③ Logout-Action
+export async function logoutAction() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('tokenExpiry');
+  return redirect('/auth?mode=login');
+}
+
+// ④ Token-Helper
+export function getToken() {
+  const token = localStorage.getItem('authToken');
+  const expiry = localStorage.getItem('tokenExpiry');
+  if (!token || !expiry) return null;
+  if (Date.now() > parseInt(expiry)) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('tokenExpiry');
+    return null;
+  }
+  return token;
+}
+
+// ⑤ Root-Loader: Token für alle Routen bereitstellen
+export function rootLoader() {
+  return { token: getToken() };
+}
+
+// ⑥ Navigation basierend auf Auth-Status
+import { useRouteLoaderData, Form } from 'react-router-dom';
+
+function MainNav() {
+  const { token } = useRouteLoaderData('root');
+
+  return (
+    <nav>
+      {!token && <Link to="/auth?mode=login">Anmelden</Link>}
+      {token && (
+        <Form method="post" action="/logout">
+          <button type="submit">Abmelden</button>
+        </Form>
+      )}
+    </nav>
+  );
+}`,
+            ts: `// pages/Auth.tsx
+import { Form, Link, useSearchParams, useActionData, redirect } from 'react-router-dom';
+import type { ActionFunctionArgs } from 'react-router-dom';
+
+interface AuthErrors { email?: string; password?: string; message?: string }
+
+function AuthPage() {
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode') ?? 'login';
+  const isLogin = mode === 'login';
+  const errors = useActionData() as AuthErrors | undefined;
+
+  return (
+    <Form method="post">
+      <h1>{isLogin ? 'Anmelden' : 'Registrieren'}</h1>
+      <label>
+        E-Mail
+        <input type="email" name="email" required />
+      </label>
+      <label>
+        Passwort
+        <input type="password" name="password" required />
+      </label>
+      {errors?.message && <p className="error">{errors.message}</p>}
+      <button type="submit">{isLogin ? 'Anmelden' : 'Registrieren'}</button>
+      <Link to={\`?mode=\${isLogin ? 'signup' : 'login'}\`}>
+        {isLogin ? 'Noch kein Konto? Registrieren' : 'Bereits registriert? Anmelden'}
+      </Link>
+    </Form>
+  );
+}
+
+export default AuthPage;
+
+export async function action({ request }: ActionFunctionArgs): Promise<AuthErrors | Response> {
+  const mode = new URL(request.url).searchParams.get('mode') ?? 'login';
+  const formData = await request.formData();
+
+  const res = await fetch(\`https://my-api.com/auth/\${mode}\`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: formData.get('email'),
+      password: formData.get('password'),
+    }),
+  });
+
+  if (res.status === 422) return await res.json();
+  if (!res.ok) throw new Response('Authentifizierung fehlgeschlagen', { status: 500 });
+
+  const { token } = await res.json() as { token: string };
+  localStorage.setItem('authToken', token);
+  localStorage.setItem('tokenExpiry', String(Date.now() + 60 * 60 * 1000));
+
+  return redirect('/dashboard');
+}
+
+// util/auth.ts
+export function getToken(): string | null {
+  const token = localStorage.getItem('authToken');
+  const expiry = localStorage.getItem('tokenExpiry');
+  if (!token || !expiry) return null;
+  if (Date.now() > parseInt(expiry)) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('tokenExpiry');
+    return null;
+  }
+  return token;
+}
+
+export function rootLoader() {
+  return { token: getToken() };
+}`,
+          },
+        ],
+      },
+      {
+        id: 'auth-protected-routes',
+        title: 'Route Protection & Token in Requests',
+        duration: '22 Min.',
+        explanation: `**Route Protection** verhindert, dass nicht eingeloggte Nutzer auf geschützte Seiten zugreifen.
+
+Das eleganteste Muster mit React Router: Ein **Loader auf der geschützten Route** prüft den Token. Wenn keiner vorhanden, \`redirect()\` zur Login-Seite. Keine extra Komponente nötig.
+
+**Token an Requests anhängen:**
+Jeder Request an gesicherte API-Endpunkte braucht den \`Authorization\`-Header. Man holt das Token aus \`localStorage\` und fügt es ein.
+
+**Automatischer Logout bei Ablauf:**
+Mit \`setTimeout\` und der verbleibenden Token-Laufzeit kann man einen automatischen Logout planen. Der Timer wird beim Laden der App gestartet und beim manuellen Logout gelöscht.`,
+        codeExamples: [
+          {
+            title: 'Loader-Guard, Authorization-Header & Auto-Logout',
+            js: `// ① Route Protection via Loader (kein HOC, kein Context nötig)
+import { redirect } from 'react-router-dom';
+import { getToken } from '../util/auth';
+
+export function requireAuthLoader() {
+  const token = getToken();
+  if (!token) {
+    return redirect('/auth?mode=login');
+  }
+  return null; // ← Loader MUSS einen Wert zurückgeben (auch null)
+}
+
+// In der Router-Konfiguration:
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    id: 'root',
+    loader: rootLoader,
+    children: [
+      { path: 'auth', element: <AuthPage />, action: authAction },
+      { path: 'logout', action: logoutAction },
+      {
+        // Alle geschützten Routen in einem Wrapper-Objekt
+        loader: requireAuthLoader,  // ← wird vor jeder Child-Route geprüft
+        children: [
+          { path: 'dashboard', element: <Dashboard /> },
+          { path: 'profile', element: <Profile /> },
+        ],
+      },
+    ],
+  },
+]);
+
+// ② Token an API-Requests anhängen
+async function fetchWithAuth(url, options = {}) {
+  const token = getToken();
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: \`Bearer \${token}\` } : {}),
+    },
+  });
+}
+
+// Verwendung in einem Loader:
+export async function dashboardLoader() {
+  const res = await fetchWithAuth('https://my-api.com/user/data');
+  if (res.status === 401) return redirect('/auth?mode=login');
+  if (!res.ok) throw new Response('Fehler', { status: 500 });
+  return res.json();
+}
+
+// ③ Automatischer Logout bei Token-Ablauf
+export function getTokenDuration() {
+  const expiry = localStorage.getItem('tokenExpiry');
+  if (!expiry) return -1;
+  return parseInt(expiry) - Date.now(); // verbleibende Zeit in ms
+}
+
+// In der Root-Komponente oder einem useEffect:
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+function AutoLogout() {
+  const navigate = useNavigate();
+  const token = getToken();
+
+  useEffect(() => {
+    if (!token) return;
+
+    const duration = getTokenDuration();
+    if (duration <= 0) {
+      // Sofort ausloggen
+      localStorage.removeItem('authToken');
+      navigate('/auth?mode=login');
+      return;
+    }
+
+    // Timer setzen
+    const timer = setTimeout(() => {
+      localStorage.removeItem('authToken');
+      navigate('/auth?mode=login');
+    }, duration);
+
+    return () => clearTimeout(timer); // Cleanup bei Unmount
+  }, [token, navigate]);
+
+  return null;
+}`,
+            ts: `// util/auth.ts
+import { redirect } from 'react-router-dom';
+
+export function getToken(): string | null {
+  const token = localStorage.getItem('authToken');
+  const expiry = localStorage.getItem('tokenExpiry');
+  if (!token || !expiry) return null;
+  if (Date.now() > parseInt(expiry)) {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('tokenExpiry');
+    return null;
+  }
+  return token;
+}
+
+export function getTokenDuration(): number {
+  const expiry = localStorage.getItem('tokenExpiry');
+  if (!expiry) return -1;
+  return parseInt(expiry) - Date.now();
+}
+
+export function requireAuthLoader(): Response | null {
+  const token = getToken();
+  if (!token) return redirect('/auth?mode=login');
+  return null; // ← Loader muss immer etwas zurückgeben
+}
+
+// ② Authorization-Header Helper
+export async function fetchWithAuth(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = getToken();
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers ?? {}),
+      ...(token ? { Authorization: \`Bearer \${token}\` } : {}),
+    },
+  });
+}
+
+// ③ Auto-Logout Hook
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export function useAutoLogout(): void {
+  const navigate = useNavigate();
+  const token = getToken();
+
+  useEffect(() => {
+    if (!token) return;
+
+    const duration = getTokenDuration();
+    if (duration <= 0) {
+      localStorage.removeItem('authToken');
+      navigate('/auth?mode=login');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      localStorage.removeItem('authToken');
+      navigate('/auth?mode=login');
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [token, navigate]);
+}`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'deployment',
+    title: 'Abschnitt 24: Deploying React Apps',
+    slug: 'deployment',
+    shortDescription: 'React-Apps für die Produktion bauen, Lazy Loading einsetzen und auf einem Hosting-Dienst deployen.',
+    lessons: [
+      {
+        id: 'dep-build-lazy',
+        title: 'Production Build & Lazy Loading',
+        duration: '18 Min.',
+        explanation: `**Deployment-Schritte im Überblick:**
+1. Code optimieren (Lazy Loading, keine Dev-Only-Imports)
+2. \`pnpm build\` → statische Dateien in \`dist/\`
+3. Den \`dist/\`-Ordner auf einen Hosting-Dienst hochladen
+
+---
+
+**Lazy Loading** (Code Splitting) verhindert, dass der Browser beim ersten Aufruf die gesamte App lädt. Stattdessen werden Routen-Komponenten erst geladen, wenn sie tatsächlich benötigt werden.
+
+React Router + \`React.lazy()\` + \`import()\` arbeiten dafür zusammen:
+- \`React.lazy(() => import('./pages/About'))\` – Komponente dynamisch importieren
+- React Router löst den Import aus, sobald zur Route navigiert wird
+- Ein \`<Suspense fallback={...}>\` zeigt während des Ladens einen Fallback
+
+**Wann lohnt sich Lazy Loading?**
+Bei kleineren Apps kaum spürbar. Bei größeren Apps mit vielen Routen/Seiten kann es den initialen Bundle deutlich verkleinern.`,
+        codeExamples: [
+          {
+            title: 'Lazy Loading mit React.lazy() & React Router',
+            js: `// main.jsx – Router mit Lazy Loading
+import { lazy, Suspense } from 'react';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
+// ① Sofort laden (kleine, kritische Seiten)
+import RootLayout from './pages/Root';
+import HomePage from './pages/Home';
+
+// ② Lazy laden (größere Seiten, die nicht sofort gebraucht werden)
+const BlogPage = lazy(() => import('./pages/Blog'));
+const DashboardPage = lazy(() => import('./pages/Dashboard'));
+const ProfilePage = lazy(() => import('./pages/Profile'));
+
+// ③ Loader können ebenfalls lazy geladen werden
+async function blogLoader() {
+  const { loader } = await import('./pages/Blog');
+  return loader();
+}
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
+      {
+        path: 'blog',
+        element: (
+          // Suspense um jede lazy Komponente – oder einmal um den Outlet
+          <Suspense fallback={<p>Lädt...</p>}>
+            <BlogPage />
+          </Suspense>
+        ),
+        loader: blogLoader,
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <Suspense fallback={<p>Lädt...</p>}>
+            <DashboardPage />
+          </Suspense>
+        ),
+      },
+    ],
+  },
+]);
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <RouterProvider router={router} />
+);`,
+            ts: `// main.tsx
+import { lazy, Suspense } from 'react';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import RootLayout from './pages/Root';
+import HomePage from './pages/Home';
+
+const BlogPage = lazy(() => import('./pages/Blog'));
+const DashboardPage = lazy(() => import('./pages/Dashboard'));
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <HomePage /> },
+      {
+        path: 'blog',
+        element: (
+          <Suspense fallback={<p>Lädt...</p>}>
+            <BlogPage />
+          </Suspense>
+        ),
+        // Loader ebenfalls lazy:
+        loader: async () => {
+          const { loader } = await import('./pages/Blog');
+          return loader();
+        },
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <Suspense fallback={<p>Lädt...</p>}>
+            <DashboardPage />
+          </Suspense>
+        ),
+      },
+    ],
+  },
+]);
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <RouterProvider router={router} />
+);`,
+          },
+        ],
+      },
+      {
+        id: 'dep-hosting',
+        title: 'Hosting & Server-Konfiguration',
+        duration: '13 Min.',
+        explanation: `**Build-Output:**
+\`pnpm build\` (bzw. \`vite build\`) erzeugt optimierte, minifizierte Dateien im \`dist/\`-Ordner. Diese sind rein statisch – kein Node-Server nötig.
+
+**Hosting-Optionen für React SPAs:**
+| Dienst | Kosten | Besonderheit |
+|---|---|---|
+| **Netlify** | Kostenlos (kleines Kontingent) | Git-Integration, automatische Deploys |
+| **Vercel** | Kostenlos | Optimiert für Frontend-Frameworks |
+| **Firebase Hosting** | Kostenlos | Teil des Firebase-Ökosystems |
+| **GitHub Pages** | Kostenlos | Nur öffentliche Repos |
+| **AWS S3 + CloudFront** | Pay-per-use | Professionell, skalierbar |
+
+**Das SPA-Routing-Problem:**
+Wenn ein Nutzer direkt \`/products/123\` aufruft, sucht der Server nach einer Datei \`products/123/index.html\` – die existiert nicht. Der Server gibt 404 zurück.
+
+**Lösung:** Den Server so konfigurieren, dass er bei 404-Fehlern immer \`index.html\` ausliefert. React Router übernimmt dann das Routing im Browser.
+
+- **Netlify**: Datei \`public/_redirects\` mit Inhalt \`/* /index.html 200\`
+- **Vercel**: \`vercel.json\` mit \`rewrites\`
+- **Apache**: \`.htaccess\`
+- **Nginx**: \`try_files $uri /index.html\``,
+        codeExamples: [
+          {
+            title: 'Server-Konfiguration für SPA-Routing',
+            js: `// ① Netlify – public/_redirects
+// Inhalt der Datei (keine JS-Syntax, nur Text):
+// /* /index.html 200
+
+// ② Vercel – vercel.json
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+
+// ③ vite.config.js – Basis-URL für Unterordner-Deployments
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  // Wenn die App unter /my-app/ läuft (z. B. GitHub Pages):
+  // base: '/my-app/',
+});
+
+// ④ Nginx-Konfiguration (server block):
+// location / {
+//   root /var/www/html;
+//   try_files $uri $uri/ /index.html;
+// }
+
+// ⑤ Apache .htaccess:
+// Options -MultiViews
+// RewriteEngine On
+// RewriteCond %{REQUEST_FILENAME} !-f
+// RewriteRule ^ index.html [QSA,L]`,
+            ts: `// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    // Chunk-Größen-Warnung anpassen (optional)
+    chunkSizeWarningLimit: 1000,
+  },
+  // Für Unterordner-Deployments (z. B. GitHub Pages):
+  // base: '/mein-projekt/',
+});
+
+// Nach dem Build:
+// dist/
+// ├── index.html          ← Einstiegspunkt
+// ├── assets/
+// │   ├── index-[hash].js  ← gebündeltes JS (minifiziert)
+// │   └── index-[hash].css ← gebündeltes CSS
+// └── ...
+
+// Mit Lazy Loading entstehen mehrere JS-Chunks:
+// assets/
+// ├── index-[hash].js      ← Haupt-Bundle (klein!)
+// ├── Blog-[hash].js       ← Blog-Chunk (lazy)
+// └── Dashboard-[hash].js  ← Dashboard-Chunk (lazy)`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'tanstack-query',
+    title: 'Abschnitt 25: React Query / Tanstack Query',
+    slug: 'tanstack-query',
+    shortDescription: 'HTTP-Requests elegant verwalten: Caching, Mutations, Invalidierung und Optimistic Updating mit @tanstack/react-query.',
+    lessons: [
+      {
+        id: 'tq-intro',
+        title: 'Was ist React Query & wann nutzen?',
+        duration: '8 Min.',
+        explanation: `**React Query** (offiziell: **TanStack Query**) ist eine Bibliothek für **Server State Management** in React-Apps.
+
+**Was ist Server State?**
+- Daten, die vom Server kommen (z. B. via Fetch / Axios)
+- Müssen geladen, gecacht, aktuell gehalten und bei Bedarf neu abgerufen werden
+- Unterschied zu **Client State** (z. B. UI-Toggle, Formularwerte) → dafür ist Context/Zustand/Redux besser geeignet
+
+**Ohne React Query** musst du selbst verwalten:
+- \`useEffect\` + \`useState\` für Loading/Error/Data
+- Kein automatisches Caching → bei jedem Rendern neuer Request
+- Kein automatisches Refetching
+- Kein Deduplication (mehrere Komponenten → mehrere identische Requests)
+
+**Mit React Query** bekommst du das kostenlos:
+- Automatisches **Caching** der Antworten
+- **Stale-while-revalidate**: Cached-Daten sofort anzeigen, im Hintergrund neu laden
+- **Background Refetching** beim Fokussieren des Tabs
+- **Deduplication**: Gleiche Query → nur ein Request
+- **Optimistic Updates**, **Paginierung**, **Infinite Scrolling**
+
+**Kernkonzept:** React Query unterscheidet zwischen **Queries** (Daten lesen) und **Mutations** (Daten schreiben/ändern/löschen).`,
+        codeExamples: [
+          {
+            title: 'Installation & QueryClientProvider einrichten',
+            js: `// Terminal:
+// pnpm add @tanstack/react-query
+
+// main.jsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import App from './App';
+
+const queryClient = new QueryClient();
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
+);`,
+            ts: `// Terminal:
+// pnpm add @tanstack/react-query
+
+// main.tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import App from './App';
+
+const queryClient = new QueryClient();
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
+);`,
+          },
+        ],
+      },
+      {
+        id: 'tq-usequery',
+        title: 'useQuery: Daten laden & anzeigen',
+        duration: '21 Min.',
+        explanation: `**\`useQuery\`** ist der zentrale Hook zum Laden von Daten. Er erwartet ein Konfigurationsobjekt mit mindestens zwei Pflichtfeldern:
+
+- **\`queryKey\`**: Ein Array, das die Query eindeutig identifiziert. Gleicher Key → gleicher Cache-Eintrag. Kann auch Parameter enthalten, um dynamische Queries zu unterscheiden.
+- **\`queryFn\`**: Eine async Funktion, die die Daten zurückliefert (Promise).
+
+**Rückgabewerte:**
+| Feld | Bedeutung |
+|---|---|
+| \`data\` | Die geladenen Daten (oder \`undefined\` beim ersten Laden) |
+| \`isPending\` | \`true\` wenn noch keine Daten vorhanden |
+| \`isLoading\` | \`true\` beim ersten Laden (kein Cache) |
+| \`isError\` | \`true\` wenn die queryFn geworfen hat |
+| \`error\` | Das Error-Objekt |
+| \`isFetching\` | \`true\` auch beim Hintergrund-Refetching |
+| \`refetch\` | Funktion zum manuellen Neu-Laden |
+
+**Query Key als dynamischer Parameter:**
+Wenn sich Teile des Query Keys ändern (z. B. eine gesuchte ID), wird die Query automatisch neu ausgeführt. Innerhalb der \`queryFn\` kann man via \`{ queryKey }\` auf den Key zugreifen – praktisch, um die URL daraus abzuleiten.`,
+        codeExamples: [
+          {
+            title: 'Einfache Query mit useQuery',
+            js: `import { useQuery } from '@tanstack/react-query';
+
+async function fetchPosts() {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts');
+  if (!res.ok) throw new Error('Fehler beim Laden');
+  return res.json();
+}
+
+function Posts() {
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['posts'],
+    queryFn: fetchPosts,
+  });
+
+  if (isPending) return <p>Lädt…</p>;
+  if (isError) return <p>Fehler: {error.message}</p>;
+
+  return (
+    <ul>
+      {data.map(post => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  );
+}`,
+            ts: `import { useQuery } from '@tanstack/react-query';
+
+type Post = { id: number; title: string; body: string };
+
+async function fetchPosts(): Promise<Post[]> {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts');
+  if (!res.ok) throw new Error('Fehler beim Laden');
+  return res.json();
+}
+
+function Posts() {
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['posts'],
+    queryFn: fetchPosts,
+  });
+
+  if (isPending) return <p>Lädt…</p>;
+  if (isError) return <p>Fehler: {(error as Error).message}</p>;
+
+  return (
+    <ul>
+      {data!.map(post => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  );
+}`,
+          },
+          {
+            title: 'Dynamische Query Keys & queryKey als Funktions-Input',
+            js: `import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
+
+// Query-Funktion erhält { queryKey } – daraus lässt sich der Parameter ableiten
+async function fetchPost({ queryKey }) {
+  const [, postId] = queryKey;  // ['post', 42]
+  const res = await fetch(\`https://jsonplaceholder.typicode.com/posts/\${postId}\`);
+  if (!res.ok) throw new Error('Post nicht gefunden');
+  return res.json();
+}
+
+function PostDetail() {
+  const { id } = useParams();
+
+  const { data, isPending } = useQuery({
+    queryKey: ['post', +id],      // ← bei neuer id → neue Query
+    queryFn: fetchPost,           // bekommt { queryKey: ['post', id] }
+  });
+
+  if (isPending) return <p>Lädt…</p>;
+  return <h1>{data.title}</h1>;
+}`,
+            ts: `import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
+
+type Post = { id: number; title: string; body: string };
+
+async function fetchPost({ queryKey }: { queryKey: readonly unknown[] }): Promise<Post> {
+  const [, postId] = queryKey;
+  const res = await fetch(\`https://jsonplaceholder.typicode.com/posts/\${postId}\`);
+  if (!res.ok) throw new Error('Post nicht gefunden');
+  return res.json();
+}
+
+function PostDetail() {
+  const { id } = useParams<{ id: string }>();
+
+  const { data, isPending } = useQuery({
+    queryKey: ['post', Number(id)],
+    queryFn: fetchPost,
+  });
+
+  if (isPending) return <p>Lädt…</p>;
+  return <h1>{data!.title}</h1>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'tq-config',
+        title: 'Cache, Stale Time & Query-Konfiguration',
+        duration: '13 Min.',
+        explanation: `**Wie funktioniert der Cache?**
+
+1. Query wird ausgeführt → Ergebnis landet im Cache unter dem \`queryKey\`
+2. Nächster Aufruf mit gleichem Key → sofort aus Cache (kein Flackern)
+3. Im Hintergrund prüft React Query, ob die Daten **"stale"** (veraltet) sind
+4. Wenn stale → neuer Request im Hintergrund → Cache aktualisiert → UI re-rendert
+
+**Wichtige Konfigurationsoptionen:**
+
+| Option | Default | Bedeutung |
+|---|---|---|
+| \`staleTime\` | \`0\` | Wie lange Daten als "frisch" gelten (ms). \`0\` = sofort stale |
+| \`gcTime\` | \`5 Min.\` | Wie lange ungenutzte Cache-Einträge behalten werden |
+| \`refetchOnWindowFocus\` | \`true\` | Refetch beim Tab-Wechsel zurück |
+| \`retry\` | \`3\` | Wie oft bei Fehler wiederholen |
+| \`enabled\` | \`true\` | Query nur ausführen wenn \`true\` |
+
+**\`staleTime: Infinity\`** → Daten werden nie als stale markiert, kein automatisches Refetching (gut für statische Daten wie Kategorien).
+
+**Konfiguration global** (für alle Queries):
+\`\`\`js
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 1000 * 60 * 5 } }
+});
+\`\`\`
+
+**Anfragen abbrechen** mit \`AbortSignal\`: React Query übergibt der \`queryFn\` automatisch ein \`signal\`. Bei Komponenten-Unmount oder neuem Query Key wird der Request abgebrochen.`,
+        codeExamples: [
+          {
+            title: 'staleTime, gcTime & AbortSignal',
+            js: `import { useQuery, QueryClient } from '@tanstack/react-query';
+
+// Global-Konfiguration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,  // 5 Minuten frisch
+      gcTime: 1000 * 60 * 10,    // 10 Min. im Cache behalten
+      retry: 1,
+    },
+  },
+});
+
+// Pro-Query-Konfiguration + AbortSignal
+async function fetchPosts({ signal }) {
+  const res = await fetch('https://api.example.com/posts', { signal });
+  if (!res.ok) throw new Error('Fehler');
+  return res.json();
+}
+
+function Posts() {
+  const { data, isPending } = useQuery({
+    queryKey: ['posts'],
+    queryFn: fetchPosts,          // signal wird automatisch übergeben
+    staleTime: 1000 * 30,         // überschreibt den Default für diese Query
+    refetchOnWindowFocus: false,
+  });
+
+  if (isPending) return <p>Lädt…</p>;
+  return <ul>{data.map(p => <li key={p.id}>{p.title}</li>)}</ul>;
+}`,
+            ts: `import { useQuery, QueryClient, QueryFunctionContext } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
+      retry: 1,
+    },
+  },
+});
+
+type Post = { id: number; title: string };
+
+async function fetchPosts({ signal }: QueryFunctionContext): Promise<Post[]> {
+  const res = await fetch('https://api.example.com/posts', { signal });
+  if (!res.ok) throw new Error('Fehler');
+  return res.json();
+}
+
+function Posts() {
+  const { data, isPending } = useQuery({
+    queryKey: ['posts'],
+    queryFn: fetchPosts,
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+  });
+
+  if (isPending) return <p>Lädt…</p>;
+  return <ul>{data!.map(p => <li key={p.id}>{p.title}</li>)}</ul>;
+}`,
+          },
+          {
+            title: 'Enabled/Disabled Queries',
+            js: `import { useQuery } from '@tanstack/react-query';
+
+// Häufiger Use-Case: Query nur ausführen wenn ein Wert vorhanden ist
+function UserPosts({ userId }) {
+  const { data, isPending, isError } = useQuery({
+    queryKey: ['posts', 'user', userId],
+    queryFn: async () => {
+      const res = await fetch(\`/api/users/\${userId}/posts\`);
+      return res.json();
+    },
+    enabled: !!userId,   // ← kein Request solange userId undefined/null
+  });
+
+  if (!userId) return <p>Kein User ausgewählt.</p>;
+  if (isPending) return <p>Lädt Posts…</p>;
+  if (isError) return <p>Fehler beim Laden.</p>;
+
+  return <ul>{data.map(p => <li key={p.id}>{p.title}</li>)}</ul>;
+}`,
+            ts: `import { useQuery } from '@tanstack/react-query';
+
+type Post = { id: number; title: string };
+
+function UserPosts({ userId }: { userId: string | undefined }) {
+  const { data, isPending, isError } = useQuery<Post[]>({
+    queryKey: ['posts', 'user', userId],
+    queryFn: async () => {
+      const res = await fetch(\`/api/users/\${userId}/posts\`);
+      return res.json();
+    },
+    enabled: !!userId,
+  });
+
+  if (!userId) return <p>Kein User ausgewählt.</p>;
+  if (isPending) return <p>Lädt Posts…</p>;
+  if (isError) return <p>Fehler beim Laden.</p>;
+
+  return <ul>{data!.map(p => <li key={p.id}>{p.title}</li>)}</ul>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'tq-mutations',
+        title: 'Mutations: Daten schreiben, ändern & löschen',
+        duration: '32 Min.',
+        explanation: `**\`useMutation\`** ist der Hook für schreibende Operationen (POST, PUT, PATCH, DELETE).
+
+Im Gegensatz zu \`useQuery\`:
+- Kein automatischer Start – du rufst \`mutate(variables)\` oder \`mutateAsync(variables)\` manuell auf
+- Kein \`queryKey\` nötig (kein Caching der Mutation selbst)
+- Hat Lifecycle-Callbacks: \`onSuccess\`, \`onError\`, \`onSettled\`, \`onMutate\`
+
+**Nach einer erfolgreichen Mutation** müssen meistens zugehörige Queries **invalidiert** werden, damit React Query sie neu lädt und die UI aktuell bleibt.
+
+\`\`\`js
+queryClient.invalidateQueries({ queryKey: ['posts'] });
+\`\`\`
+
+Das invalidiert alle Queries, deren Key mit \`['posts']\` beginnt (Prefix-Match).
+
+**Update statt neu laden** – mit \`setQueryData\` kann man den Cache direkt überschreiben, ohne einen neuen Request:
+\`\`\`js
+queryClient.setQueryData(['post', id], updatedPost);
+\`\`\`
+
+**\`mutate\` vs. \`mutateAsync\`:**
+- \`mutate(data)\` – fire-and-forget, Fehler werden im \`onError\`-Callback behandelt
+- \`mutateAsync(data)\` – gibt ein Promise zurück, kann mit \`await\` und \`try/catch\` verwendet werden`,
+        codeExamples: [
+          {
+            title: 'useMutation: neuen Post erstellen & Queries invalidieren',
+            js: `import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+async function createPost(postData) {
+  const res = await fetch('/api/posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(postData),
+  });
+  if (!res.ok) throw new Error('Erstellen fehlgeschlagen');
+  return res.json();
+}
+
+function NewPostForm() {
+  const queryClient = useQueryClient();
+
+  const { mutate, isPending, isError } = useMutation({
+    mutationFn: createPost,
+    onSuccess: () => {
+      // Posts-Liste invalidieren → wird automatisch neu geladen
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+    onError: (error) => {
+      console.error('Fehler:', error.message);
+    },
+  });
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    mutate({ title: formData.get('title'), body: formData.get('body') });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="title" placeholder="Titel" />
+      <textarea name="body" placeholder="Inhalt" />
+      <button disabled={isPending}>
+        {isPending ? 'Speichert…' : 'Erstellen'}
+      </button>
+      {isError && <p>Fehler beim Erstellen!</p>}
+    </form>
+  );
+}`,
+            ts: `import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+type NewPost = { title: string; body: string };
+type Post = NewPost & { id: number };
+
+async function createPost(postData: NewPost): Promise<Post> {
+  const res = await fetch('/api/posts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(postData),
+  });
+  if (!res.ok) throw new Error('Erstellen fehlgeschlagen');
+  return res.json();
+}
+
+function NewPostForm() {
+  const queryClient = useQueryClient();
+
+  const { mutate, isPending, isError } = useMutation({
+    mutationFn: createPost,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    },
+    onError: (error: Error) => {
+      console.error('Fehler:', error.message);
+    },
+  });
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    mutate({
+      title: formData.get('title') as string,
+      body: formData.get('body') as string,
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="title" placeholder="Titel" />
+      <textarea name="body" placeholder="Inhalt" />
+      <button disabled={isPending}>
+        {isPending ? 'Speichert…' : 'Erstellen'}
+      </button>
+      {isError && <p>Fehler beim Erstellen!</p>}
+    </form>
+  );
+}`,
+          },
+          {
+            title: 'Daten aktualisieren (PUT) & Refetching deaktivieren',
+            js: `import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+async function updatePost({ id, ...data }) {
+  const res = await fetch(\`/api/posts/\${id}\`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update fehlgeschlagen');
+  return res.json();
+}
+
+function EditPost({ post }) {
+  const queryClient = useQueryClient();
+
+  const { mutate } = useMutation({
+    mutationFn: updatePost,
+    onSuccess: (updatedPost) => {
+      // Option 1: Cache direkt überschreiben (kein neuer Request)
+      queryClient.setQueryData(['post', updatedPost.id], updatedPost);
+
+      // Option 2: Nur invalidieren, aber kein sofortiges Refetch auslösen
+      queryClient.invalidateQueries({
+        queryKey: ['posts'],
+        refetchType: 'none',  // ← kein automatisches Refetching nach Invalidierung
+      });
+    },
+  });
+
+  return (
+    <button onClick={() => mutate({ id: post.id, title: 'Neuer Titel' })}>
+      Speichern
+    </button>
+  );
+}`,
+            ts: `import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+type Post = { id: number; title: string; body: string };
+type UpdatePayload = { id: number; title?: string; body?: string };
+
+async function updatePost({ id, ...data }: UpdatePayload): Promise<Post> {
+  const res = await fetch(\`/api/posts/\${id}\`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Update fehlgeschlagen');
+  return res.json();
+}
+
+function EditPost({ post }: { post: Post }) {
+  const queryClient = useQueryClient();
+
+  const { mutate } = useMutation({
+    mutationFn: updatePost,
+    onSuccess: (updatedPost) => {
+      queryClient.setQueryData(['post', updatedPost.id], updatedPost);
+      queryClient.invalidateQueries({
+        queryKey: ['posts'],
+        refetchType: 'none',
+      });
+    },
+  });
+
+  return (
+    <button onClick={() => mutate({ id: post.id, title: 'Neuer Titel' })}>
+      Speichern
+    </button>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'tq-optimistic',
+        title: 'Optimistic Updating',
+        duration: '13 Min.',
+        explanation: `**Optimistic Updating** bedeutet: Die UI wird sofort aktualisiert, bevor der Server antwortet. Falls der Server-Request fehlschlägt, wird der alte Zustand wiederhergestellt (**Rollback**).
+
+**Warum?** Für Aktionen, die fast immer erfolgreich sind (z. B. Like-Button, Checkbox), fühlt sich die App so reaktiver an – keine wahrnehmbare Verzögerung.
+
+**Implementierung mit \`onMutate\`:**
+1. **\`onMutate\`**: Wird direkt beim Aufruf von \`mutate()\` ausgeführt – noch vor dem Server-Request
+   - Laufende Refetches canceln (\`cancelQueries\`)
+   - Aktuellen Cache-Wert sichern (\`getQueryData\`)
+   - Cache optimistisch setzen (\`setQueryData\`)
+   - Snapshot zurückgeben (fürs Rollback)
+2. **\`onError\`**: Bekommt den Snapshot aus \`onMutate\` → Rollback mit \`setQueryData\`
+3. **\`onSettled\`**: Immer ausgeführt (Erfolg + Fehler) → Queries invalidieren für finale Synchronisation`,
+        codeExamples: [
+          {
+            title: 'Optimistisches Liken eines Posts',
+            js: `import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+async function likePost(postId) {
+  const res = await fetch(\`/api/posts/\${postId}/like\`, { method: 'POST' });
+  if (!res.ok) throw new Error('Like fehlgeschlagen');
+  return res.json();
+}
+
+function LikeButton({ post }) {
+  const queryClient = useQueryClient();
+
+  const { mutate } = useMutation({
+    mutationFn: likePost,
+
+    // 1. Sofort ausführen – vor dem Request
+    onMutate: async (postId) => {
+      // Laufende Refetches abbrechen, damit sie den opt. Update nicht überschreiben
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+
+      // Aktuellen Wert sichern
+      const previousPost = queryClient.getQueryData(['post', postId]);
+
+      // Optimistisch updaten
+      queryClient.setQueryData(['post', postId], (old) => ({
+        ...old,
+        likes: old.likes + 1,
+      }));
+
+      return { previousPost };  // ← Snapshot für Rollback
+    },
+
+    // 2. Rollback bei Fehler
+    onError: (_err, postId, context) => {
+      queryClient.setQueryData(['post', postId], context.previousPost);
+    },
+
+    // 3. Finale Synchronisation
+    onSettled: (_data, _err, postId) => {
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+    },
+  });
+
+  return (
+    <button onClick={() => mutate(post.id)}>
+      👍 {post.likes}
+    </button>
+  );
+}`,
+            ts: `import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+type Post = { id: number; title: string; likes: number };
+
+async function likePost(postId: number): Promise<Post> {
+  const res = await fetch(\`/api/posts/\${postId}/like\`, { method: 'POST' });
+  if (!res.ok) throw new Error('Like fehlgeschlagen');
+  return res.json();
+}
+
+function LikeButton({ post }: { post: Post }) {
+  const queryClient = useQueryClient();
+
+  const { mutate } = useMutation({
+    mutationFn: likePost,
+
+    onMutate: async (postId: number) => {
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+
+      const previousPost = queryClient.getQueryData<Post>(['post', postId]);
+
+      queryClient.setQueryData<Post>(['post', postId], (old) =>
+        old ? { ...old, likes: old.likes + 1 } : old
+      );
+
+      return { previousPost };
+    },
+
+    onError: (_err, postId, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', postId], context.previousPost);
+      }
+    },
+
+    onSettled: (_data, _err, postId) => {
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+    },
+  });
+
+  return (
+    <button onClick={() => mutate(post.id)}>
+      👍 {post.likes}
+    </button>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'tq-router',
+        title: 'React Query & React Router',
+        duration: '20 Min.',
+        explanation: `**React Query und React Router** lassen sich gut kombinieren. Es gibt zwei gängige Muster:
+
+---
+
+**Muster 1: useQuery in Komponenten (klassisch)**
+Queries laufen in den Komponenten selbst. Kein Unterschied zur normalen Verwendung. Der \`isPending\`-State wird für Ladeanzeigen genutzt.
+
+---
+
+**Muster 2: QueryClient in Router-Loader (empfohlen bei React Router v6.4+)**
+React Router's \`loader\`-Funktion kann den \`QueryClient\` nutzen, um Daten **vor** dem Rendern der Komponente zu laden. Vorteil: Keine Lade-Spinner in der Komponente – die Route rendert erst, wenn die Daten da sind.
+
+Dabei wird \`queryClient.ensureQueryData()\` verwendet:
+- Wenn Daten bereits im Cache: sofort zurückgeben (kein neuer Request)
+- Wenn nicht: Daten laden und cachen
+
+In der Komponente greift man dann trotzdem auf \`useQuery\` zu – die Daten sind aber sofort verfügbar (kein Pending-State beim initialen Render).
+
+Das Beste beider Welten: Daten sind beim ersten Render sofort da **und** React Query kümmert sich danach um automatisches Refetching und Cache-Management.`,
+        codeExamples: [
+          {
+            title: 'QueryClient im Router-Loader',
+            js: `// router.jsx
+import { createBrowserRouter } from 'react-router-dom';
+import { QueryClient } from '@tanstack/react-query';
+import PostsPage from './pages/PostsPage';
+
+export const queryClient = new QueryClient();
+
+const postsQuery = {
+  queryKey: ['posts'],
+  queryFn: async () => {
+    const res = await fetch('/api/posts');
+    return res.json();
+  },
+  staleTime: 1000 * 60,
+};
+
+export const router = createBrowserRouter([
+  {
+    path: '/posts',
+    element: <PostsPage />,
+    loader: async () => {
+      // Wenn Cache frisch → direkt aus Cache; sonst: Fetch
+      return queryClient.ensureQueryData(postsQuery);
+    },
+  },
+]);
+
+// main.jsx
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <QueryClientProvider client={queryClient}>
+    <RouterProvider router={router} />
+  </QueryClientProvider>
+);
+
+// pages/PostsPage.jsx
+import { useQuery } from '@tanstack/react-query';
+import { postsQuery } from '../router';  // Query-Definition wiederverwenden
+
+function PostsPage() {
+  // data ist sofort verfügbar – Loader hat bereits geladen
+  const { data } = useQuery(postsQuery);
+
+  return (
+    <ul>
+      {data.map(post => <li key={post.id}>{post.title}</li>)}
+    </ul>
+  );
+}`,
+            ts: `// router.tsx
+import { createBrowserRouter } from 'react-router-dom';
+import { QueryClient } from '@tanstack/react-query';
+import PostsPage from './pages/PostsPage';
+
+export const queryClient = new QueryClient();
+
+type Post = { id: number; title: string };
+
+export const postsQuery = {
+  queryKey: ['posts'] as const,
+  queryFn: async (): Promise<Post[]> => {
+    const res = await fetch('/api/posts');
+    return res.json();
+  },
+  staleTime: 1000 * 60,
+};
+
+export const router = createBrowserRouter([
+  {
+    path: '/posts',
+    element: <PostsPage />,
+    loader: async () => {
+      return queryClient.ensureQueryData(postsQuery);
+    },
+  },
+]);
+
+// main.tsx
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QueryClientProvider client={queryClient}>
+    <RouterProvider router={router} />
+  </QueryClientProvider>
+);
+
+// pages/PostsPage.tsx
+import { useQuery } from '@tanstack/react-query';
+import { postsQuery } from '../router';
+
+function PostsPage() {
+  const { data } = useQuery(postsQuery);
+
+  return (
+    <ul>
+      {data!.map(post => <li key={post.id}>{post.title}</li>)}
+    </ul>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'nextjs-intro',
+    title: 'Abschnitt 26: Next.js – A Pretty Deep Dive',
+    slug: 'nextjs-intro',
+    shortDescription: 'Next.js von Grund auf: App Router, Server Components, Server Actions, Pages Router, SSG/SSR und Datenbankanbindung.',
+    lessons: [
+      {
+        id: 'njs-setup',
+        title: 'Projektstruktur, Routing & reservierte Dateinamen',
+        duration: '18 Min.',
+        explanation: `**Next.js** ist ein React-Framework, das serverseitiges Rendering, statische Generierung und Full-Stack-Fähigkeiten direkt mitbringt.
+
+**Projekt erstellen:**
+\`\`\`bash
+npx create-next-app@latest mein-projekt
+\`\`\`
+
+---
+
+**App Router (seit Next.js 13+ empfohlen)**
+
+Routing basiert vollständig auf dem **Dateisystem** innerhalb des \`app/\`-Ordners:
+- Jeder Ordner = ein Route-Segment
+- \`page.tsx\` in einem Ordner → die gerenderte Seite für diese Route
+- \`layout.tsx\` → umschließt alle Seiten darunter (persistent, kein Re-Mount beim Navigieren)
+- \`loading.tsx\` → automatische Ladeseite (Suspense-Boundary)
+- \`error.tsx\` → Error-Boundary für diese Route
+- \`not-found.tsx\` → 404-Page für diese Route
+
+**Reservierte Dateinamen** (im \`app/\`-Ordner):
+| Dateiname | Zweck |
+|---|---|
+| \`page.tsx\` | Seiteninhalt (öffentlich zugänglich) |
+| \`layout.tsx\` | Gemeinsames Layout (umschließt children) |
+| \`loading.tsx\` | Lade-UI (automatische Suspense-Boundary) |
+| \`error.tsx\` | Error-Boundary (\`'use client'\` erforderlich) |
+| \`not-found.tsx\` | 404-Seite, auslösbar mit \`notFound()\` |
+| \`route.ts\` | API-Endpunkt (kein UI) |
+
+**Dynamische Routen**: Ordner in eckigen Klammern → \`[id]/page.tsx\`
+- \`params.id\` gibt den Wert aus der URL zurück
+- Ordner mit \`(gruppe)\` → Route Grouping (keine URL-Auswirkung, nur Organisationszweck)
+
+**Eigene Komponenten** kommen nach Konvention in einen \`components/\`-Ordner – aber **nicht** direkt als Unterordner einer Route, sondern entweder im Root oder in einem eigenen Ordner außerhalb öffentlicher Routen.`,
+        codeExamples: [
+          {
+            title: 'Dateistruktur & page.tsx / layout.tsx',
+            js: `// app/page.jsx  →  Route: /
+export default function HomePage() {
+  return <h1>Willkommen!</h1>;
+}
+
+// app/blog/page.jsx  →  Route: /blog
+export default function BlogPage() {
+  return <h1>Blog</h1>;
+}
+
+// app/blog/[id]/page.jsx  →  Route: /blog/42
+export default function BlogPostPage({ params }) {
+  return <h1>Post-ID: {params.id}</h1>;
+}
+
+// app/layout.jsx  →  Root-Layout (umschließt ALLE Seiten)
+export default function RootLayout({ children }) {
+  return (
+    <html lang="de">
+      <body>
+        <nav>Navigation hier</nav>
+        {children}
+      </body>
+    </html>
+  );
+}`,
+            ts: `// app/page.tsx  →  Route: /
+export default function HomePage() {
+  return <h1>Willkommen!</h1>;
+}
+
+// app/blog/page.tsx  →  Route: /blog
+export default function BlogPage() {
+  return <h1>Blog</h1>;
+}
+
+// app/blog/[id]/page.tsx  →  Route: /blog/42
+export default async function BlogPostPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <h1>Post-ID: {id}</h1>;
+}
+
+// app/layout.tsx
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="de">
+      <body>
+        <nav>Navigation hier</nav>
+        {children}
+      </body>
+    </html>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-navigation',
+        title: 'Navigation & Layouts',
+        duration: '10 Min.',
+        explanation: `**Zwischen Seiten navigieren** in Next.js erfolgt mit der \`<Link>\`-Komponente aus \`next/link\` – kein vollständiger Seitenneulade, sondern clientseitige Navigation (SPA-Verhalten).
+
+\`\`\`jsx
+import Link from 'next/link';
+<Link href="/blog">Zum Blog</Link>
+\`\`\`
+
+**Aktiven Link erkennen**: mit dem Hook \`usePathname()\` aus \`next/navigation\` (\`'use client'\` nötig, da Hook).
+
+---
+
+**Layouts & verschachtelte Layouts**
+
+Ein \`layout.tsx\` umschließt alle Seiten und Unter-Layouts in seinem Ordner. Das Root-Layout (\`app/layout.tsx\`) ist **Pflicht** und enthält \`<html>\` und \`<body>\`.
+
+- Layouts werden beim Navigieren **nicht neu gemountet** → State bleibt erhalten
+- Für verschachtelte Layouts einfach \`layout.tsx\` in einem Unterordner anlegen
+- Eigene Komponenten (z. B. Navbar) können direkt im Layout genutzt werden`,
+        codeExamples: [
+          {
+            title: 'Link-Komponente & aktiver Link',
+            js: `// components/MainNav.jsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import styles from './MainNav.module.css';
+
+export default function MainNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav>
+      <Link
+        href="/"
+        className={pathname === '/' ? styles.active : ''}
+      >
+        Home
+      </Link>
+      <Link
+        href="/blog"
+        className={pathname.startsWith('/blog') ? styles.active : ''}
+      >
+        Blog
+      </Link>
+    </nav>
+  );
+}
+
+// app/layout.jsx
+import MainNav from '@/components/MainNav';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="de">
+      <body>
+        <header>
+          <MainNav />
+        </header>
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+}`,
+            ts: `// components/MainNav.tsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import styles from './MainNav.module.css';
+
+export default function MainNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav>
+      <Link
+        href="/"
+        className={pathname === '/' ? styles.active : ''}
+      >
+        Home
+      </Link>
+      <Link
+        href="/blog"
+        className={pathname.startsWith('/blog') ? styles.active : ''}
+      >
+        Blog
+      </Link>
+    </nav>
+  );
+}
+
+// app/layout.tsx
+import MainNav from '@/components/MainNav';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="de">
+      <body>
+        <header>
+          <MainNav />
+        </header>
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-rsc',
+        title: 'React Server Components vs. Client Components',
+        duration: '19 Min.',
+        explanation: `Das ist eines der zentralen Konzepte in Next.js (App Router):
+
+**React Server Components (RSC)** – Default in \`app/\`
+- Werden **nur auf dem Server** gerendert, nie im Browser
+- Können \`async\` sein → direktes \`await\` ohne \`useEffect\`
+- Kein direkter Zugriff auf Browser-APIs (kein \`window\`, kein \`document\`)
+- Können keine React-Hooks verwenden (\`useState\`, \`useEffect\`, …)
+- Kleiner JS-Bundle im Browser (Komponenten-Code wird nicht mitgesendet)
+- Können andere Server Components **und** Client Components rendern
+
+**Client Components** – mit \`'use client'\` am Dateianfang
+- Werden auf dem Server **vorgerendert** (HTML) und dann im Browser **hydriert**
+- Können Hooks, Event-Handler, Browser-APIs verwenden
+- Erhalten Props vom Server
+
+**Faustregel:** So wenige Client Components wie möglich. Interaktivität (Klicks, State, Effekte) → \`'use client'\`. Alles andere → Server Component.
+
+**Wichtig:** \`'use client'\` markiert die **Grenze** – alle Komponenten, die von einem Client Component importiert werden, werden automatisch ebenfalls clientseitig ausgeführt.
+
+**Effizient verwenden:** Interaktive Teile so weit wie möglich in kleine, separate Client Components auslagern – damit möglichst viel als Server Component bleibt.`,
+        codeExamples: [
+          {
+            title: 'Server Component vs. Client Component',
+            js: `// app/meals/page.jsx  ← Server Component (kein 'use client')
+// Kann direkt auf die Datenbank zugreifen:
+import { getMeals } from '@/lib/meals';
+import MealsList from '@/components/MealsList';
+
+export default async function MealsPage() {
+  const meals = await getMeals();  // ← await direkt möglich!
+  return <MealsList meals={meals} />;
+}
+
+// components/MealsList.jsx  ← Server Component (listet Daten)
+import MealItem from './MealItem';
+
+export default function MealsList({ meals }) {
+  return (
+    <ul>
+      {meals.map(meal => <MealItem key={meal.id} meal={meal} />)}
+    </ul>
+  );
+}
+
+// components/ImageSlideshow.jsx  ← Client Component (Interaktion nötig)
+'use client';
+
+import { useState, useEffect } from 'react';
+
+export default function ImageSlideshow({ images }) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent(i => (i + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  return <img src={images[current]} alt="Slideshow" />;
+}`,
+            ts: `// app/meals/page.tsx  ← Server Component
+import { getMeals } from '@/lib/meals';
+import MealsList from '@/components/MealsList';
+
+type Meal = { id: number; title: string; summary: string };
+
+export default async function MealsPage() {
+  const meals: Meal[] = await getMeals();
+  return <MealsList meals={meals} />;
+}
+
+// components/MealsList.tsx  ← Server Component
+import MealItem from './MealItem';
+
+type Meal = { id: number; title: string; summary: string };
+
+export default function MealsList({ meals }: { meals: Meal[] }) {
+  return (
+    <ul>
+      {meals.map(meal => <MealItem key={meal.id} meal={meal} />)}
+    </ul>
+  );
+}
+
+// components/ImageSlideshow.tsx  ← Client Component
+'use client';
+
+import { useState, useEffect } from 'react';
+
+export default function ImageSlideshow({ images }: { images: string[] }) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent(i => (i + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  return <img src={images[current]} alt="Slideshow" />;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-styling-images',
+        title: 'Styling mit CSS Modules & das Image-Komponente',
+        duration: '11 Min.',
+        explanation: `**CSS Modules** sind die empfohlene Styling-Methode in Next.js – kein globales CSS, keine Klassen-Konflikte.
+
+- Dateiname: \`KomponentenName.module.css\`
+- Klassen werden als JS-Objekt importiert: \`import styles from './Card.module.css'\`
+- Klasse verwenden: \`className={styles.card}\`
+- Klassen sind automatisch scoped (einzigartige Hash-Suffixe im Build)
+
+Globales CSS bleibt für Reset/Base-Styles in \`app/globals.css\` und wird im Root-Layout importiert.
+
+---
+
+**\`<Image>\`-Komponente** (\`next/image\`)
+
+Ersetzt \`<img>\` und liefert automatisch:
+- **Lazy Loading** (standardmäßig aktiv)
+- **Automatische Größenoptimierung** (WebP, AVIF)
+- **Kein Layout-Shift** (Platz wird reserviert)
+
+Für Bilder mit **unbekannten Dimensionen** (z. B. vom Nutzer hochgeladen): \`fill\`-Prop nutzen → füllt den Parent-Container. Der Parent braucht \`position: relative\` und definierte Maße.`,
+        codeExamples: [
+          {
+            title: 'CSS Modules & Image-Komponente',
+            js: `// components/MealItem.module.css
+/*
+.card {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.image {
+  position: relative;
+  height: 200px;
+}
+*/
+
+// components/MealItem.jsx
+import Image from 'next/image';
+import Link from 'next/link';
+import styles from './MealItem.module.css';
+
+export default function MealItem({ meal }) {
+  return (
+    <article className={styles.card}>
+      {/* fill: Bild füllt den relativ positionierten Container */}
+      <div className={styles.image}>
+        <Image
+          src={meal.image}
+          alt={meal.title}
+          fill              // ← Parent muss position:relative haben
+          style={{ objectFit: 'cover' }}
+        />
+      </div>
+      <div>
+        <h2>{meal.title}</h2>
+        <p>{meal.summary}</p>
+        <Link href={\`/meals/\${meal.slug}\`}>Details</Link>
+      </div>
+    </article>
+  );
+}`,
+            ts: `// components/MealItem.tsx
+import Image from 'next/image';
+import Link from 'next/link';
+import styles from './MealItem.module.css';
+
+type Meal = { id: number; title: string; summary: string; image: string; slug: string };
+
+export default function MealItem({ meal }: { meal: Meal }) {
+  return (
+    <article className={styles.card}>
+      <div className={styles.image}>
+        <Image
+          src={meal.image}
+          alt={meal.title}
+          fill
+          style={{ objectFit: 'cover' }}
+        />
+      </div>
+      <div>
+        <h2>{meal.title}</h2>
+        <p>{meal.summary}</p>
+        <Link href={\`/meals/\${meal.slug}\`}>Details</Link>
+      </div>
+    </article>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-data-fetching',
+        title: 'Daten laden: Datenbank, Loading & Suspense',
+        duration: '24 Min.',
+        explanation: `**Server Components können direkt auf Datenbanken zugreifen** – kein API-Zwischenschritt nötig. Der Code läuft nur auf dem Server und wird nie an den Client gesendet.
+
+Typisch mit SQLite via \`better-sqlite3\`:
+\`\`\`js
+// lib/meals.js
+import sql from 'better-sqlite3';
+const db = sql('meals.db');
+
+export function getMeals() {
+  return db.prepare('SELECT * FROM meals').all();
+}
+\`\`\`
+
+---
+
+**Lade-UI mit \`loading.tsx\`**
+
+Eine \`loading.tsx\`-Datei in einem Route-Ordner wird automatisch als Suspense-Fallback eingesetzt, solange eine \`async\` Server Component lädt. Das ersetzt aufwendige manuelle Suspense-Wrapper für ganze Seiten.
+
+**Granulareres Laden mit \`<Suspense>\`**: Wenn nur ein Teil der Seite Daten lädt, kann man direkt \`<Suspense fallback={…}>\` um die Komponente wickeln – dann bleibt der Rest der Seite sofort sichtbar.
+
+---
+
+**Fehler- & Not-Found-Handling**
+
+- \`error.tsx\`: Error-Boundary für die Route. **Muss** \`'use client'\` haben (React-Error-Boundaries sind immer clientseitig). Bekommt \`error\` und \`reset\` als Props.
+- \`not-found.tsx\`: Wird angezeigt, wenn \`notFound()\` aus \`next/navigation\` geworfen wird (z. B. item aus DB nicht gefunden).`,
+        codeExamples: [
+          {
+            title: 'Direkte DB-Abfrage & loading.tsx',
+            js: `// lib/meals.js
+import sql from 'better-sqlite3';
+const db = sql('meals.db');
+
+export async function getMeals() {
+  await new Promise(r => setTimeout(r, 1000));
+  return db.prepare('SELECT * FROM meals').all();
+}
+
+export function getMealBySlug(slug) {
+  return db.prepare('SELECT * FROM meals WHERE slug = ?').get(slug);
+}
+
+// app/meals/page.jsx  ← async Server Component
+import { getMeals } from '@/lib/meals';
+import MealsList from '@/components/MealsList';
+
+export default async function MealsPage() {
+  const meals = await getMeals();
+  return <MealsList meals={meals} />;
+}
+
+// app/meals/loading.jsx  ← automatische Lade-UI
+export default function MealsLoading() {
+  return <p>Gerichte werden geladen…</p>;
+}
+
+// app/meals/error.jsx  ← Error-Boundary
+'use client';
+
+export default function MealsError({ error, reset }) {
+  return (
+    <div>
+      <h2>Fehler beim Laden der Gerichte.</h2>
+      <p>{error.message}</p>
+      <button onClick={reset}>Erneut versuchen</button>
+    </div>
+  );
+}`,
+            ts: `// lib/meals.ts
+import sql from 'better-sqlite3';
+const db = sql('meals.db');
+
+export type Meal = {
+  id: number;
+  slug: string;
+  title: string;
+  summary: string;
+  instructions: string;
+  image: string;
+  creator: string;
+};
+
+export async function getMeals(): Promise<Meal[]> {
+  await new Promise(r => setTimeout(r, 1000));
+  return db.prepare('SELECT * FROM meals').all() as Meal[];
+}
+
+export function getMealBySlug(slug: string): Meal | undefined {
+  return db.prepare('SELECT * FROM meals WHERE slug = ?').get(slug) as Meal | undefined;
+}
+
+// app/meals/page.tsx
+import { getMeals } from '@/lib/meals';
+import MealsList from '@/components/MealsList';
+
+export default async function MealsPage() {
+  const meals = await getMeals();
+  return <MealsList meals={meals} />;
+}
+
+// app/meals/error.tsx
+'use client';
+
+export default function MealsError({
+  error,
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
+  return (
+    <div>
+      <h2>Fehler beim Laden der Gerichte.</h2>
+      <p>{error.message}</p>
+      <button onClick={reset}>Erneut versuchen</button>
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Granulares Laden mit Suspense & notFound()',
+            js: `// app/meals/page.jsx
+import { Suspense } from 'react';
+import MealsGrid from '@/components/MealsGrid';
+
+export default function MealsPage() {
+  return (
+    <>
+      <header>
+        <h1>Unsere Gerichte</h1>
+      </header>
+      <Suspense fallback={<p>Gerichte laden…</p>}>
+        <MealsGrid />
+      </Suspense>
+    </>
+  );
+}
+
+// app/meals/[slug]/page.jsx
+import { getMealBySlug } from '@/lib/meals';
+import { notFound } from 'next/navigation';
+
+export default async function MealDetailPage({ params }) {
+  const meal = getMealBySlug(params.slug);
+
+  if (!meal) {
+    notFound();  // ← rendert not-found.tsx
+  }
+
+  return <h1>{meal.title}</h1>;
+}
+
+// app/meals/[slug]/not-found.jsx
+export default function MealNotFound() {
+  return <p>Dieses Gericht gibt es nicht.</p>;
+}`,
+            ts: `// app/meals/page.tsx
+import { Suspense } from 'react';
+import MealsGrid from '@/components/MealsGrid';
+
+export default function MealsPage() {
+  return (
+    <>
+      <header>
+        <h1>Unsere Gerichte</h1>
+      </header>
+      <Suspense fallback={<p>Gerichte laden…</p>}>
+        <MealsGrid />
+      </Suspense>
+    </>
+  );
+}
+
+// app/meals/[slug]/page.tsx
+import { getMealBySlug } from '@/lib/meals';
+import { notFound } from 'next/navigation';
+
+export default async function MealDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const meal = getMealBySlug(slug);
+
+  if (!meal) {
+    notFound();
+  }
+
+  return <h1>{meal.title}</h1>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-server-actions',
+        title: 'Server Actions, Formulare & useFormStatus / useActionState',
+        duration: '34 Min.',
+        explanation: `**Server Actions** sind Funktionen, die nur auf dem Server laufen, aber direkt aus Client Components aufgerufen werden können – ideal für Formular-Submissions ohne eigene API-Route.
+
+**Erstellen:** Mit der Direktive \`'use server'\` am Anfang der Funktion (oder der Datei, um alle Exports als Server Actions zu markieren).
+
+**Verwenden in einem Formular:** \`<form action={meineServerAction}>\` – Next.js serialisiert die Formulardaten automatisch als \`FormData\`.
+
+---
+
+**Dateien für Server Actions auslagern** (Best Practice):
+\`\`\`
+lib/actions.js   ← 'use server' am Dateianfang
+\`\`\`
+So bleiben Server-seitiger Code und Komponenten sauber getrennt.
+
+---
+
+**\`useFormStatus\`** (aus \`react-dom\`):
+- Gibt \`{ pending }\` zurück – \`true\` während die Action läuft
+- Muss in einer **Child-Komponente** des \`<form>\`-Elements sein, nicht direkt im Form-Component
+
+**\`useActionState\`** (aus \`react\`):
+- Kombiniert State mit einer Server Action
+- Signatur: \`const [state, formAction] = useActionState(action, initialState)\`
+- Die Action bekommt als erstes Argument den vorherigen \`state\`, als zweites \`formData\`
+- Rückgabewert der Action → neuer State → UI kann Fehler/Erfolg anzeigen
+
+---
+
+**Sicherheit beim Speichern von Formulardaten:**
+- Slugs generieren (z. B. \`title.toLowerCase().replace(/\\s+/g, '-')\`)
+- User-HTML **sanitisieren** vor dem Speichern in der DB (XSS-Schutz): Bibliothek \`xss\` oder \`dompurify\` verwenden
+- Dateien (Bilder) **nicht lokal** auf dem Dateisystem persistieren (funktioniert bei serverless Deployments nicht) → Cloud-Speicher (z. B. AWS S3) verwenden`,
+        codeExamples: [
+          {
+            title: 'Server Action & Formular',
+            js: `// lib/actions.js
+'use server';
+
+import { redirect } from 'next/navigation';
+import { saveMeal } from './meals';
+
+export async function shareMeal(prevState, formData) {
+  const meal = {
+    title: formData.get('title'),
+    summary: formData.get('summary'),
+    instructions: formData.get('instructions'),
+    image: formData.get('image'),   // File-Objekt
+    creator: formData.get('name'),
+  };
+
+  // Validierung
+  if (!meal.title || meal.title.trim() === '') {
+    return { message: 'Titel ist Pflichtfeld.' };
+  }
+
+  await saveMeal(meal);
+  redirect('/meals');  // ← nach Erfolg weiterleiten
+}
+
+// app/meals/share/page.jsx
+'use client';
+
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
+import { shareMeal } from '@/lib/actions';
+
+// Separater Submit-Button → useFormStatus greift auf Parent-Form zu
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button disabled={pending}>
+      {pending ? 'Wird gespeichert…' : 'Rezept teilen'}
+    </button>
+  );
+}
+
+export default function ShareMealPage() {
+  const [state, formAction] = useActionState(shareMeal, { message: null });
+
+  return (
+    <form action={formAction}>
+      <input name="name" placeholder="Dein Name" required />
+      <input name="title" placeholder="Titel" required />
+      <textarea name="summary" placeholder="Kurzbeschreibung" />
+      <textarea name="instructions" placeholder="Zubereitung" />
+      <input type="file" name="image" accept="image/*" required />
+      {state.message && <p style={{ color: 'red' }}>{state.message}</p>}
+      <SubmitButton />
+    </form>
+  );
+}`,
+            ts: `// lib/actions.ts
+'use server';
+
+import { redirect } from 'next/navigation';
+import { saveMeal } from './meals';
+
+type ActionState = { message: string | null };
+
+export async function shareMeal(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const meal = {
+    title: formData.get('title') as string,
+    summary: formData.get('summary') as string,
+    instructions: formData.get('instructions') as string,
+    image: formData.get('image') as File,
+    creator: formData.get('name') as string,
+  };
+
+  if (!meal.title?.trim()) {
+    return { message: 'Titel ist Pflichtfeld.' };
+  }
+
+  await saveMeal(meal);
+  redirect('/meals');
+}
+
+// app/meals/share/page.tsx
+'use client';
+
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
+import { shareMeal } from '@/lib/actions';
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button disabled={pending}>
+      {pending ? 'Wird gespeichert…' : 'Rezept teilen'}
+    </button>
+  );
+}
+
+export default function ShareMealPage() {
+  const [state, formAction] = useActionState(shareMeal, { message: null });
+
+  return (
+    <form action={formAction}>
+      <input name="name" placeholder="Dein Name" required />
+      <input name="title" placeholder="Titel" required />
+      <textarea name="summary" placeholder="Kurzbeschreibung" />
+      <textarea name="instructions" placeholder="Zubereitung" />
+      <input type="file" name="image" accept="image/*" required />
+      {state.message && <p style={{ color: 'red' }}>{state.message}</p>}
+      <SubmitButton />
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-caching-metadata',
+        title: 'Caching, Revalidierung & Metadata',
+        duration: '16 Min.',
+        explanation: `**Next.js Caching**
+
+Next.js cached Fetch-Anfragen und gerenderte Seiten aggressiv im Production-Build. Das bedeutet: Daten, die sich ändern, werden ohne Weiteres **nicht** automatisch aktualisiert.
+
+**\`revalidatePath(path)\`** aus \`next/cache\`: Leert den Cache für eine bestimmte Route. Typischer Einsatzort: in einer Server Action nach erfolgreicher Datenmutation.
+
+\`\`\`js
+import { revalidatePath } from 'next/cache';
+
+// Nach dem Speichern eines neuen Gerichts:
+revalidatePath('/meals');           // nur /meals neu cachen
+revalidatePath('/meals', 'layout'); // /meals und alle Unterrouten
+\`\`\`
+
+**Wichtig:** Dateien dürfen beim Deployment **nicht** lokal gespeichert werden – das Filesystem ist read-only / nicht persistent in serverless Umgebungen. Bilder und Uploads kommen in Cloud-Speicher (z. B. **AWS S3**).
+
+---
+
+**Metadata**
+
+Next.js bietet eine eingebaute Metadata-API – keine \`<head>\`-Tags manuell schreiben.
+
+**Statische Metadata:** \`export const metadata = { title: '…', description: '…' }\` in \`layout.tsx\` oder \`page.tsx\`.
+
+**Dynamische Metadata:** \`export async function generateMetadata({ params })\` – kann async sein und z. B. Daten aus der DB laden.
+
+Metadata aus \`layout.tsx\` und \`page.tsx\` werden zusammengeführt; die spezifischere \`page.tsx\`-Metadata gewinnt bei Konflikten.`,
+        codeExamples: [
+          {
+            title: 'revalidatePath & statische / dynamische Metadata',
+            js: `// lib/actions.js (Auszug)
+'use server';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+
+export async function shareMeal(prevState, formData) {
+  // ... Validierung & Speichern ...
+  revalidatePath('/meals');  // Cache invalidieren → nächster Aufruf lädt frische Daten
+  redirect('/meals');
+}
+
+// app/layout.jsx  ← statische Metadata für die gesamte App
+export const metadata = {
+  title: { template: '%s | FoodieShare', default: 'FoodieShare' },
+  description: 'Entdecke und teile leckere Rezepte.',
+};
+
+// app/meals/page.jsx  ← statische Metadata für diese Route
+export const metadata = {
+  title: 'Alle Gerichte',    // Ergebnis: "Alle Gerichte | FoodieShare"
+};
+
+// app/meals/[slug]/page.jsx  ← dynamische Metadata
+import { getMealBySlug } from '@/lib/meals';
+import { notFound } from 'next/navigation';
+
+export async function generateMetadata({ params }) {
+  const meal = getMealBySlug(params.slug);
+  if (!meal) notFound();
+  return {
+    title: meal.title,
+    description: meal.summary,
+  };
+}`,
+            ts: `// lib/actions.ts (Auszug)
+'use server';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+
+export async function shareMeal(prevState: ActionState, formData: FormData) {
+  // ...
+  revalidatePath('/meals');
+  redirect('/meals');
+}
+
+// app/layout.tsx
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: { template: '%s | FoodieShare', default: 'FoodieShare' },
+  description: 'Entdecke und teile leckere Rezepte.',
+};
+
+// app/meals/[slug]/page.tsx
+import type { Metadata } from 'next';
+import { getMealBySlug } from '@/lib/meals';
+import { notFound } from 'next/navigation';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const meal = getMealBySlug(slug);
+  if (!meal) notFound();
+  return {
+    title: meal.title,
+    description: meal.summary,
+  };
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-pages-router',
+        title: 'Pages Router: Routing, Navigation & Layouts',
+        duration: '30 Min.',
+        explanation: `Der **Pages Router** ist das klassische Next.js-Routing-System (vor Next.js 13). Er ist weiterhin vollständig unterstützt und viele bestehende Projekte verwenden ihn.
+
+**Kernunterschiede zum App Router:**
+| | App Router | Pages Router |
+|---|---|---|
+| Ordner | \`app/\` | \`pages/\` |
+| Seite | \`page.tsx\` | beliebige Datei direkt im Ordner |
+| Layout | \`layout.tsx\` | \`_app.js\` (global) / manuell |
+| Server Components | Default | ❌ (alle Komponenten sind Client Components) |
+| Data Fetching | \`async\` in Component | \`getStaticProps\` / \`getServerSideProps\` |
+
+**Routing im Pages Router:**
+- \`pages/index.tsx\` → Route \`/\`
+- \`pages/blog.tsx\` → Route \`/blog\`
+- \`pages/blog/[id].tsx\` → dynamische Route \`/blog/42\`
+- \`pages/blog/index.tsx\` → Route \`/blog\` (Alternative zu \`blog.tsx\`)
+
+**\`_app.js\`**: Das globale Wrapper-Layout im Pages Router. Hier kommen globale Styles und persistente Komponenten (Navbar, Footer) rein.
+
+**Navigation**: ebenfalls mit \`<Link>\` aus \`next/link\`. Programmatische Navigation mit dem Hook \`useRouter\` aus \`next/router\` (nicht \`next/navigation\`!).`,
+        codeExamples: [
+          {
+            title: 'Pages Router: Struktur, _app.js & Navigation',
+            js: `// pages/index.jsx  →  Route: /
+export default function HomePage() {
+  return <h1>Startseite</h1>;
+}
+
+// pages/meetups/index.jsx  →  Route: /meetups
+export default function MeetupsPage() {
+  return <h1>Alle Meetups</h1>;
+}
+
+// pages/meetups/[meetupId].jsx  →  Route: /meetups/m1
+import { useRouter } from 'next/router';
+
+export default function MeetupDetailPage() {
+  const router = useRouter();
+  const { meetupId } = router.query;  // ← URL-Parameter
+  return <h1>Meetup: {meetupId}</h1>;
+}
+
+// pages/_app.jsx  →  globales Layout
+import '../styles/globals.css';
+import Layout from '../components/layout/Layout';
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <Layout>
+      <Component {...pageProps} />
+    </Layout>
+  );
+}
+
+// Programmatische Navigation
+import { useRouter } from 'next/router';
+
+function NewMeetupForm() {
+  const router = useRouter();
+
+  async function handleSubmit(data) {
+    await fetch('/api/new-meetup', { method: 'POST', body: JSON.stringify(data) });
+    router.push('/meetups');  // ← nach Erfolg navigieren
+  }
+  // ...
+}`,
+            ts: `// pages/meetups/[meetupId].tsx
+import { useRouter } from 'next/router';
+
+export default function MeetupDetailPage() {
+  const router = useRouter();
+  const { meetupId } = router.query;
+
+  return <h1>Meetup: {meetupId}</h1>;
+}
+
+// pages/_app.tsx
+import type { AppProps } from 'next/app';
+import '../styles/globals.css';
+import Layout from '../components/layout/Layout';
+
+export default function MyApp({ Component, pageProps }: AppProps) {
+  return (
+    <Layout>
+      <Component {...pageProps} />
+    </Layout>
+  );
+}
+
+// Programmatische Navigation
+import { useRouter } from 'next/router';
+
+function NewMeetupForm() {
+  const router = useRouter();
+
+  async function handleSubmit(data: Record<string, string>) {
+    await fetch('/api/new-meetup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    router.push('/meetups');
+  }
+  // ...
+}`,
+          },
+        ],
+      },
+      {
+        id: 'njs-prerendering',
+        title: 'Pre-Rendering: SSG & SSR im Pages Router',
+        duration: '28 Min.',
+        explanation: `Im Pages Router gibt es zwei Wege, wie Next.js Seiten vorrendert:
+
+---
+
+**Static Site Generation (SSG)** – \`getStaticProps\`
+- Seite wird zur **Build-Zeit** gerendert → super schnell, CDN-cached
+- Funktion \`getStaticProps\` wird nur auf dem Server ausgeführt (nie im Browser)
+- Rückgabe: \`{ props: { … } }\` – Props werden an die Page-Komponente übergeben
+- Optional: \`revalidate\` für **Incremental Static Regeneration (ISR)** – Seite wird alle N Sekunden im Hintergrund neu gebaut
+
+Für **dynamische Routen** zusätzlich \`getStaticPaths\` benötigt: definiert, welche Parameter-Werte beim Build erzeugt werden.
+
+**\`fallback\` in \`getStaticPaths\`:**
+- \`false\`: Nur vorab definierte Pfade → andere → 404
+- \`true\` / \`'blocking'\`: Neue Pfade werden on-demand generiert und dann gecacht
+
+---
+
+**Server-Side Rendering (SSR)** – \`getServerSideProps\`
+- Seite wird bei **jedem Request** auf dem Server gerendert
+- Hat Zugriff auf den Request-Kontext (\`req\`, \`res\`, \`params\`, \`query\`)
+- Langsamer als SSG, aber immer aktuell
+- Kein \`getStaticPaths\` nötig
+
+**Wann welches?**
+- Daten ändern sich selten / können gecached werden → **SSG (+ ISR)**
+- Daten müssen immer aktuell sein (User-spezifisch, Echtzeit) → **SSR**`,
+        codeExamples: [
+          {
+            title: 'getStaticProps, getStaticPaths & getServerSideProps',
+            js: `// pages/meetups/index.jsx  ←  SSG
+export default function MeetupsPage({ meetups }) {
+  return (
+    <ul>
+      {meetups.map(m => <li key={m.id}>{m.title}</li>)}
+    </ul>
+  );
+}
+
+// Läuft nur zur Build-Zeit auf dem Server:
+export async function getStaticProps() {
+  const res = await fetch('https://api.example.com/meetups');
+  const data = await res.json();
+
+  return {
+    props: { meetups: data },
+    revalidate: 60,  // ← ISR: alle 60s neu generieren (optional)
+  };
+}
+
+// pages/meetups/[meetupId].jsx  ←  SSG + dynamische Routen
+export default function MeetupDetail({ meetup }) {
+  return <h1>{meetup.title}</h1>;
+}
+
+export async function getStaticPaths() {
+  return {
+    paths: [
+      { params: { meetupId: 'm1' } },
+      { params: { meetupId: 'm2' } },
+    ],
+    fallback: 'blocking',  // Neue Pfade on-demand erzeugen & cachen
+  };
+}
+
+export async function getStaticProps({ params }) {
+  const { meetupId } = params;
+  const res = await fetch(\`https://api.example.com/meetups/\${meetupId}\`);
+  const data = await res.json();
+  return { props: { meetup: data }, revalidate: 30 };
+}
+
+// pages/profile.jsx  ←  SSR (Request-spezifisch)
+export default function ProfilePage({ user }) {
+  return <h1>Hallo {user.name}</h1>;
+}
+
+export async function getServerSideProps(context) {
+  const { req, res, params, query } = context;
+  // z. B. Session aus Cookie lesen, Daten aus DB holen
+  const user = { name: 'Max' };  // vereinfacht
+  return { props: { user } };
+}`,
+            ts: `// pages/meetups/index.tsx
+import type { GetStaticProps, InferGetStaticPropsType } from 'next';
+
+type Meetup = { id: string; title: string };
+
+export default function MeetupsPage({
+  meetups,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
+  return (
+    <ul>
+      {meetups.map(m => <li key={m.id}>{m.title}</li>)}
+    </ul>
+  );
+}
+
+export const getStaticProps: GetStaticProps<{ meetups: Meetup[] }> = async () => {
+  const res = await fetch('https://api.example.com/meetups');
+  const data: Meetup[] = await res.json();
+  return { props: { meetups: data }, revalidate: 60 };
+};
+
+// pages/meetups/[meetupId].tsx
+import type { GetStaticPaths, GetStaticProps } from 'next';
+
+type Meetup = { id: string; title: string };
+
+export default function MeetupDetail({ meetup }: { meetup: Meetup }) {
+  return <h1>{meetup.title}</h1>;
+}
+
+export const getStaticPaths: GetStaticPaths = async () => ({
+  paths: [
+    { params: { meetupId: 'm1' } },
+    { params: { meetupId: 'm2' } },
+  ],
+  fallback: 'blocking',
+});
+
+export const getStaticProps: GetStaticProps = async ({ params }) => {
+  const res = await fetch(\`https://api.example.com/meetups/\${params!.meetupId}\`);
+  const data = await res.json();
+  return { props: { meetup: data }, revalidate: 30 };
+};
+
+// pages/profile.tsx  ← SSR
+import type { GetServerSideProps } from 'next';
+
+type User = { name: string };
+
+export default function ProfilePage({ user }: { user: User }) {
+  return <h1>Hallo {user.name}</h1>;
+}
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  return { props: { user: { name: 'Max' } } };
+};`,
+          },
+        ],
+      },
+      {
+        id: 'njs-api-routes',
+        title: 'API Routes & Datenbankanbindung im Pages Router',
+        duration: '26 Min.',
+        explanation: `**API Routes** im Pages Router: Dateien unter \`pages/api/\` werden zu Server-seitigen API-Endpunkten – kein separates Backend nötig.
+
+- \`pages/api/meetups.js\` → \`GET /api/meetups\`, \`POST /api/meetups\`
+- Exportiert eine Handler-Funktion mit \`(req, res)\`-Parametern
+- Unterstützt alle HTTP-Methoden: \`req.method\` prüfen
+- \`req.body\` enthält den geparsten Request-Body (bei JSON automatisch)
+
+**MongoDB-Anbindung** mit \`mongodb\`:
+\`\`\`bash
+pnpm add mongodb
+\`\`\`
+
+Verbindungsstring kommt aus einer Umgebungsvariable in \`.env.local\`:
+\`\`\`
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/dbname
+\`\`\`
+
+**Wichtig:** API-Route-Code läuft nur auf dem Server – Credentials werden nie an den Client gesendet.
+
+**Daten direkt in \`getStaticProps\`/\`getServerSideProps\` laden**: Man kann die DB-Logik **direkt importieren** (kein \`fetch\` auf die eigene API nötig), da diese Funktionen ebenfalls nur server-seitig laufen.
+
+**Metadata im Pages Router**: Mit der \`<Head>\`-Komponente aus \`next/head\` kann pro Seite der \`<head>\` befüllt werden (\`<title>\`, \`<meta>\`-Tags, etc.).`,
+        codeExamples: [
+          {
+            title: 'API Route mit MongoDB & Head-Metadata',
+            js: `// pages/api/meetups.js
+import { MongoClient } from 'mongodb';
+
+export default async function handler(req, res) {
+  const client = await MongoClient.connect(process.env.MONGODB_URI);
+  const db = client.db('meetups-db');
+
+  if (req.method === 'POST') {
+    const data = req.body;
+    const result = await db.collection('meetups').insertOne(data);
+    client.close();
+    return res.status(201).json({ message: 'Gespeichert', id: result.insertedId });
+  }
+
+  if (req.method === 'GET') {
+    const meetups = await db.collection('meetups').find().toArray();
+    client.close();
+    return res.status(200).json(meetups);
+  }
+
+  res.status(405).json({ message: 'Methode nicht erlaubt' });
+}
+
+// pages/meetups/index.jsx  ←  DB direkt in getStaticProps
+import Head from 'next/head';
+import { MongoClient } from 'mongodb';
+
+export default function MeetupsPage({ meetups }) {
+  return (
+    <>
+      <Head>
+        <title>Alle Meetups</title>
+        <meta name="description" content="Alle React Meetups auf einen Blick." />
+      </Head>
+      <ul>
+        {meetups.map(m => <li key={m.id}>{m.title}</li>)}
+      </ul>
+    </>
+  );
+}
+
+export async function getStaticProps() {
+  const client = await MongoClient.connect(process.env.MONGODB_URI);
+  const db = client.db('meetups-db');
+  const raw = await db.collection('meetups').find().toArray();
+  client.close();
+
+  return {
+    props: {
+      meetups: raw.map(m => ({
+        id: m._id.toString(),
+        title: m.title,
+        address: m.address,
+        image: m.image,
+      })),
+    },
+    revalidate: 10,
+  };
+}`,
+            ts: `// pages/api/meetups.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { MongoClient } from 'mongodb';
+
+type Meetup = { title: string; address: string; image: string; description: string };
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const client = await MongoClient.connect(process.env.MONGODB_URI!);
+  const db = client.db('meetups-db');
+
+  if (req.method === 'POST') {
+    const data = req.body as Meetup;
+    const result = await db.collection('meetups').insertOne(data);
+    client.close();
+    return res.status(201).json({ message: 'Gespeichert', id: result.insertedId });
+  }
+
+  if (req.method === 'GET') {
+    const meetups = await db.collection('meetups').find().toArray();
+    client.close();
+    return res.status(200).json(meetups);
+  }
+
+  res.status(405).json({ message: 'Methode nicht erlaubt' });
+}
+
+// pages/meetups/index.tsx
+import type { GetStaticProps } from 'next';
+import Head from 'next/head';
+import { MongoClient } from 'mongodb';
+
+type MeetupItem = { id: string; title: string; address: string; image: string };
+
+export default function MeetupsPage({ meetups }: { meetups: MeetupItem[] }) {
+  return (
+    <>
+      <Head>
+        <title>Alle Meetups</title>
+        <meta name="description" content="Alle React Meetups auf einen Blick." />
+      </Head>
+      <ul>
+        {meetups.map(m => <li key={m.id}>{m.title}</li>)}
+      </ul>
+    </>
+  );
+}
+
+export const getStaticProps: GetStaticProps<{ meetups: MeetupItem[] }> = async () => {
+  const client = await MongoClient.connect(process.env.MONGODB_URI!);
+  const db = client.db('meetups-db');
+  const raw = await db.collection('meetups').find().toArray();
+  client.close();
+
+  return {
+    props: {
+      meetups: raw.map(m => ({
+        id: m._id.toString(),
+        title: m.title as string,
+        address: m.address as string,
+        image: m.image as string,
+      })),
+    },
+    revalidate: 10,
+  };
+};`,
+          },
+        ],
+      },
+    ],
+  },
 ]
