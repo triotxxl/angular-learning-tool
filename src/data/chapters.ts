@@ -1011,9 +1011,9 @@ const mitSpread: number[] = [...zahlen, 6, 7];`,
   },
   {
     id: 'react-essentials',
-    title: 'Abschnitt 3: React Essentials',
+    title: 'Abschnitte 3–4: React Essentials',
     slug: 'react-essentials',
-    shortDescription: 'Components, JSX, Props, State und Events – die Kernkonzepte von React.',
+    shortDescription: 'Components, JSX, Props, State, Events und fortgeschrittene Patterns: Komposition, Lifting State, Immutability und flexible Komponenten-Architektur.',
     lessons: [
       {
         id: 're-components-jsx',
@@ -2044,14 +2044,6 @@ export function Home(): JSX.Element {
           },
         ],
       },
-    ],
-  },
-  {
-    id: 'react-deep-dive',
-    title: 'Abschnitt 4: React Essentials – Deep Dive',
-    slug: 'react-deep-dive',
-    shortDescription: 'Fortgeschrittene Patterns: Komponenten-Architektur, State-Management, Immutability und flexible JSX-Patterns.',
-    lessons: [
       {
         id: 'rdd-jsx-alternatives',
         title: 'JSX unter der Haube & Fragments',
@@ -5557,6 +5549,2977 @@ function BatchExample(): JSX.Element {
 
   return <button onClick={handleClick}>{label || count}</button>;
 }`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'working-with-forms',
+    title: 'Abschnitt 17: Working with Forms & User Input',
+    slug: 'working-with-forms',
+    shortDescription: 'Formulare in React: Eingaben erfassen, validieren und wiederverwendbare Form-Komponenten & Hooks bauen.',
+    lessons: [
+      {
+        id: 'forms-submission',
+        title: 'Formularübermittlung & Reset',
+        duration: '17 Min.',
+        explanation: `In modernem React unterdrückt man das native Browser-Verhalten beim Form-Submit mit \`event.preventDefault()\` und verarbeitet die Daten selbst – sonst würde die Seite neu laden.
+
+**Was macht Formulare tricky?**
+- Eingaben sind flüchtig – ohne React-Kontrolle gehen sie beim Re-Render verloren.
+- Validierung, Submit-Handling und Reset müssen manuell koordiniert werden.
+
+**Formular zurücksetzen:**
+- \`event.target.reset()\` setzt alle nativen Inputs des Formulars auf den Ausgangszustand zurück.
+- Bei controlled Inputs (mit \`useState\`) setzt man den State manuell zurück.`,
+        codeExamples: [
+          {
+            title: 'Submit abfangen & Formular zurücksetzen',
+            js: `function LoginForm() {
+  function handleSubmit(event) {
+    event.preventDefault(); // ← Seitenneuladen verhindern
+
+    const formData = new FormData(event.target);
+    const email = formData.get('email');
+    const password = formData.get('password');
+
+    console.log('Login:', email, password);
+
+    event.target.reset(); // ← Alle Felder leeren
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="email" name="email" placeholder="E-Mail" />
+      <input type="password" name="password" placeholder="Passwort" />
+      <button type="submit">Einloggen</button>
+    </form>
+  );
+}`,
+            ts: `function LoginForm() {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    console.log('Login:', email, password);
+
+    event.currentTarget.reset();
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="email" name="email" placeholder="E-Mail" />
+      <input type="password" name="password" placeholder="Passwort" />
+      <button type="submit">Einloggen</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'forms-controlled-vs-refs',
+        title: 'Eingaben per State oder Refs lesen',
+        duration: '16 Min.',
+        explanation: `Es gibt zwei gängige Wege, Eingabewerte in React zu lesen:
+
+**1. Controlled Input (via State)**
+Der Input-Wert wird vollständig über React-State gesteuert. \`value\` und \`onChange\` müssen beide gesetzt sein. Das ist die flexibelste Methode – jede Änderung löst einen Re-Render aus und man hat jederzeit Zugriff auf den aktuellen Wert.
+
+**2. Uncontrolled Input (via Ref)**
+Der Wert liegt im DOM und wird nur bei Bedarf abgelesen (z. B. beim Submit). Kein ständiger Re-Render. Gut für einfache Formulare, bei denen keine Live-Validierung nötig ist.
+
+**Wann was?**
+- **State**: Live-Validierung, abhängige Felder, komplexe Formularlogik
+- **Ref**: Einfache Formulare, bei denen nur beim Submit etwas passiert`,
+        codeExamples: [
+          {
+            title: 'Controlled Input – State',
+            js: `import { useState } from 'react';
+
+function NameForm() {
+  const [name, setName] = useState('');
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    console.log('Name:', name);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Dein Name"
+      />
+      <p>Vorschau: {name}</p>
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+function NameForm() {
+  const [name, setName] = useState<string>('');
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    console.log('Name:', name);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        value={name}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+        placeholder="Dein Name"
+      />
+      <p>Vorschau: {name}</p>
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+          },
+          {
+            title: 'Uncontrolled Input – Ref',
+            js: `import { useRef } from 'react';
+
+function NameForm() {
+  const nameRef = useRef(null);
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    console.log('Name:', nameRef.current.value);
+    nameRef.current.value = ''; // manuelles Reset
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input ref={nameRef} type="text" placeholder="Dein Name" />
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+            ts: `import { useRef } from 'react';
+
+function NameForm() {
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    console.log('Name:', nameRef.current?.value);
+    if (nameRef.current) nameRef.current.value = '';
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input ref={nameRef} type="text" placeholder="Dein Name" />
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'forms-formdata',
+        title: 'FormData & Native Browser APIs',
+        duration: '9 Min.',
+        explanation: `Die native \`FormData\`-API liest alle Felder auf einmal aus dem DOM – ohne jeden Input einzeln tracken zu müssen.
+
+**So funktioniert es:**
+- Im \`onSubmit\`-Handler übergibt man \`event.target\` (das \`<form>\`-Element) an \`new FormData()\`.
+- Jedes Input-Feld braucht ein \`name\`-Attribut – darüber wird der Wert abgerufen.
+- Mit \`Object.fromEntries(formData)\` lässt sich das Ergebnis bequem in ein einfaches Objekt umwandeln.
+
+**Grenzen:** Checkboxen und Multi-Selects brauchen Sonderbehandlung (\`formData.getAll()\`).`,
+        codeExamples: [
+          {
+            title: 'FormData – alle Felder auf einmal auslesen',
+            js: `function RegisterForm() {
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+
+    // Einzelne Werte abrufen
+    const username = formData.get('username');
+
+    // Alle Werte als Objekt
+    const data = Object.fromEntries(formData);
+    console.log(data);
+    // { username: 'Max', email: 'max@example.com', role: 'admin' }
+
+    event.target.reset();
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="username" type="text" placeholder="Benutzername" />
+      <input name="email" type="email" placeholder="E-Mail" />
+      <select name="role">
+        <option value="user">Benutzer</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button type="submit">Registrieren</button>
+    </form>
+  );
+}`,
+            ts: `function RegisterForm() {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+
+    const username = formData.get('username') as string;
+
+    const data = Object.fromEntries(formData) as {
+      username: string;
+      email: string;
+      role: string;
+    };
+    console.log(data);
+
+    event.currentTarget.reset();
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="username" type="text" placeholder="Benutzername" />
+      <input name="email" type="email" placeholder="E-Mail" />
+      <select name="role">
+        <option value="user">Benutzer</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button type="submit">Registrieren</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'forms-validation',
+        title: 'Eingabevalidierung – Strategien im Vergleich',
+        duration: '32 Min.',
+        explanation: `React bietet mehrere Strategien zur Formularvalidierung. Die richtige Wahl hängt davon ab, **wann** Fehler angezeigt werden sollen.
+
+**1. Validierung bei jedem Tastendruck (onChange)**
+Maximale Reaktivität – der Nutzer sieht sofort Fehler. Kann aber irritieren, wenn schon beim ersten Buchstaben ein Fehler erscheint.
+
+**2. Validierung beim Fokusverlust (onBlur)**
+Fehler erscheinen erst, wenn das Feld verlassen wird. Nutzerfreundlicher Kompromiss.
+
+**3. Validierung beim Submit**
+Fehler werden erst beim Absenden gezeigt. Einfachste Variante, aber kein frühes Feedback.
+
+**4. HTML-Built-in-Validierung (required, minLength, type, pattern)**
+Der Browser übernimmt die Validierung nativ – ohne JavaScript. Schnell eingebaut, aber schwer in der Darstellung anpassbar.
+
+**5. Kombinierter Ansatz**
+Oft sinnvoll: \`required\`/\`type\` für die HTML-Basisvalidierung + eigene Logik für komplexe Regeln. Das \`touched\`-Flag verhindert, dass Fehler vor der ersten Interaktion erscheinen.`,
+        codeExamples: [
+          {
+            title: 'Validierung per State – onChange + onBlur kombiniert',
+            js: `import { useState } from 'react';
+
+function EmailField() {
+  const [email, setEmail] = useState('');
+  const [touched, setTouched] = useState(false);
+
+  const isInvalid = touched && !email.includes('@');
+
+  return (
+    <div>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        onBlur={() => setTouched(true)}
+        placeholder="E-Mail"
+      />
+      {isInvalid && <p style={{ color: 'red' }}>Ungültige E-Mail-Adresse.</p>}
+    </div>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+function EmailField() {
+  const [email, setEmail] = useState<string>('');
+  const [touched, setTouched] = useState<boolean>(false);
+
+  const isInvalid = touched && !email.includes('@');
+
+  return (
+    <div>
+      <input
+        type="email"
+        value={email}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+        onBlur={() => setTouched(true)}
+        placeholder="E-Mail"
+      />
+      {isInvalid && <p style={{ color: 'red' }}>Ungültige E-Mail-Adresse.</p>}
+    </div>
+  );
+}`,
+          },
+          {
+            title: 'Validierung beim Submit + HTML built-in Props',
+            js: `import { useState } from 'react';
+
+function SignupForm() {
+  const [errors, setErrors] = useState({});
+
+  function validate(data) {
+    const newErrors = {};
+    if (!data.username || data.username.trim().length < 3) {
+      newErrors.username = 'Mindestens 3 Zeichen erforderlich.';
+    }
+    if (!data.email.includes('@')) {
+      newErrors.email = 'Ungültige E-Mail-Adresse.';
+    }
+    return newErrors;
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.target));
+    const newErrors = validate(data);
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
+    console.log('Abgeschickt:', data);
+    event.target.reset();
+  }
+
+  return (
+    // noValidate deaktiviert Browser-Fehlermeldungen; eigene UI übernimmt
+    <form onSubmit={handleSubmit} noValidate>
+      <div>
+        <input name="username" type="text" required minLength={3} placeholder="Benutzername" />
+        {errors.username && <p>{errors.username}</p>}
+      </div>
+      <div>
+        <input name="email" type="email" required placeholder="E-Mail" />
+        {errors.email && <p>{errors.email}</p>}
+      </div>
+      <button type="submit">Registrieren</button>
+    </form>
+  );
+}`,
+            ts: `import { useState } from 'react';
+
+type FormErrors = {
+  username?: string;
+  email?: string;
+};
+
+type SignupData = {
+  username: string;
+  email: string;
+};
+
+function SignupForm() {
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  function validate(data: SignupData): FormErrors {
+    const newErrors: FormErrors = {};
+    if (!data.username || data.username.trim().length < 3) {
+      newErrors.username = 'Mindestens 3 Zeichen erforderlich.';
+    }
+    if (!data.email.includes('@')) {
+      newErrors.email = 'Ungültige E-Mail-Adresse.';
+    }
+    return newErrors;
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget)) as SignupData;
+    const newErrors = validate(data);
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
+    console.log('Abgeschickt:', data);
+    event.currentTarget.reset();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <div>
+        <input name="username" type="text" required minLength={3} placeholder="Benutzername" />
+        {errors.username && <p>{errors.username}</p>}
+      </div>
+      <div>
+        <input name="email" type="email" required placeholder="E-Mail" />
+        {errors.email && <p>{errors.email}</p>}
+      </div>
+      <button type="submit">Registrieren</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'forms-reusable-hooks',
+        title: 'Wiederverwendbare Input-Komponente & useInput-Hook',
+        duration: '28 Min.',
+        explanation: `Sobald mehrere Formulare dieselbe Logik (Wert, touched-Flag, Validierung) wiederholen, lohnt es sich, sie auszulagern.
+
+**Wiederverwendbare \`<Input>\`-Komponente**
+Kapselt das \`<input>\`-Element zusammen mit Label und Fehlertext. Übernimmt \`value\`, \`onChange\`, \`onBlur\` und einen optionalen \`error\`-String als Props – per Spread-Operator (\`...props\`) lassen sich beliebige native Input-Attribute durchreichen.
+
+**Custom \`useInput\`-Hook**
+Lagert die gesamte State-Logik (Wert, touched-Flag, Change- und Blur-Handler, Reset) in einen wiederverwendbaren Hook aus. Das Ergebnis ist eine saubere Schnittstelle für jedes Formularfeld.
+
+**Drittanbieter-Bibliotheken**
+Für komplexe Formulare lohnt ein Blick auf etablierte Libs:
+- **React Hook Form** – minimale Re-Renders, native HTML-Validation, sehr performant.
+- **Formik** – imperativer Stil, gut für große Formulare mit verschachtelten Strukturen.
+- **Zod / Yup** – Schema-basierte Validierung, ideal kombiniert mit React Hook Form.`,
+        codeExamples: [
+          {
+            title: 'Wiederverwendbare <Input>-Komponente',
+            js: `// components/Input.jsx
+export function Input({ label, id, error, ...props }) {
+  return (
+    <div>
+      <label htmlFor={id}>{label}</label>
+      <input id={id} {...props} />
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+    </div>
+  );
+}
+
+// Verwendung
+import { useState } from 'react';
+import { Input } from './components/Input';
+
+function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [touched, setTouched] = useState(false);
+
+  const emailError = touched && !email.includes('@')
+    ? 'Ungültige E-Mail'
+    : undefined;
+
+  return (
+    <form>
+      <Input
+        label="E-Mail"
+        id="email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        onBlur={() => setTouched(true)}
+        error={emailError}
+      />
+    </form>
+  );
+}`,
+            ts: `// components/Input.tsx
+type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  label: string;
+  id: string;
+  error?: string;
+};
+
+export function Input({ label, id, error, ...props }: InputProps) {
+  return (
+    <div>
+      <label htmlFor={id}>{label}</label>
+      <input id={id} {...props} />
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+    </div>
+  );
+}
+
+// Verwendung
+import { useState } from 'react';
+import { Input } from './components/Input';
+
+function LoginForm() {
+  const [email, setEmail] = useState<string>('');
+  const [touched, setTouched] = useState<boolean>(false);
+
+  const emailError = touched && !email.includes('@')
+    ? 'Ungültige E-Mail'
+    : undefined;
+
+  return (
+    <form>
+      <Input
+        label="E-Mail"
+        id="email"
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        onBlur={() => setTouched(true)}
+        error={emailError}
+      />
+    </form>
+  );
+}`,
+          },
+          {
+            title: 'Custom useInput-Hook',
+            js: `// hooks/useInput.js
+import { useState } from 'react';
+
+export function useInput(initialValue, validate) {
+  const [value, setValue] = useState(initialValue);
+  const [touched, setTouched] = useState(false);
+
+  const error = touched ? validate(value) : undefined;
+
+  function handleChange(event) {
+    setValue(event.target.value);
+  }
+
+  function handleBlur() {
+    setTouched(true);
+  }
+
+  function reset() {
+    setValue(initialValue);
+    setTouched(false);
+  }
+
+  return { value, error, handleChange, handleBlur, reset };
+}
+
+// Verwendung
+function SignupForm() {
+  const email = useInput('', (v) =>
+    v.includes('@') ? undefined : 'Ungültige E-Mail'
+  );
+  const username = useInput('', (v) =>
+    v.trim().length >= 3 ? undefined : 'Mindestens 3 Zeichen'
+  );
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    if (email.error || username.error) return;
+    console.log(email.value, username.value);
+    email.reset();
+    username.reset();
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={email.value} onChange={email.handleChange} onBlur={email.handleBlur} />
+      {email.error && <p>{email.error}</p>}
+      <input value={username.value} onChange={username.handleChange} onBlur={username.handleBlur} />
+      {username.error && <p>{username.error}</p>}
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+            ts: `// hooks/useInput.ts
+import { useState } from 'react';
+
+export function useInput(
+  initialValue: string,
+  validate: (value: string) => string | undefined
+) {
+  const [value, setValue] = useState<string>(initialValue);
+  const [touched, setTouched] = useState<boolean>(false);
+
+  const error = touched ? validate(value) : undefined;
+
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setValue(event.target.value);
+  }
+
+  function handleBlur() {
+    setTouched(true);
+  }
+
+  function reset() {
+    setValue(initialValue);
+    setTouched(false);
+  }
+
+  return { value, error, handleChange, handleBlur, reset };
+}
+
+// Verwendung
+function SignupForm() {
+  const email = useInput('', (v) =>
+    v.includes('@') ? undefined : 'Ungültige E-Mail'
+  );
+  const username = useInput('', (v) =>
+    v.trim().length >= 3 ? undefined : 'Mindestens 3 Zeichen'
+  );
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (email.error || username.error) return;
+    console.log(email.value, username.value);
+    email.reset();
+    username.reset();
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={email.value} onChange={email.handleChange} onBlur={email.handleBlur} />
+      {email.error && <p>{email.error}</p>}
+      <input value={username.value} onChange={username.handleChange} onBlur={username.handleBlur} />
+      {username.error && <p>{username.error}</p>}
+      <button type="submit">Absenden</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'forms-via-actions',
+    title: 'Abschnitt 18: Handling Forms via Form Actions',
+    slug: 'forms-via-actions',
+    shortDescription: 'React 19 Form Actions: Formulare deklarativ mit action-Prop, useActionState, useFormStatus und Optimistic Updating verwalten.',
+    lessons: [
+      {
+        id: 'fva-form-actions-basics',
+        title: 'Form Actions – Grundkonzept & Submission',
+        duration: '23 Min.',
+        explanation: `React 19 führt ein neues, deklaratives Konzept für Formulare ein: **Form Actions**. Statt \`onSubmit\` + \`event.preventDefault()\` übergibt man dem \`<form>\`-Element eine **\`action\`-Prop**, die eine Funktion entgegennimmt.
+
+**Wie funktioniert es?**
+- Die Action-Funktion erhält automatisch ein \`FormData\`-Objekt – kein manuelles \`new FormData(event.target)\` nötig.
+- React verhindert das Browser-Neuladen intern. Kein \`event.preventDefault()\` erforderlich.
+- Die Funktion kann **außerhalb der Komponente** definiert werden, was die Komponente übersichtlicher hält.
+
+**Vorteile gegenüber onSubmit:**
+- Weniger Boilerplate
+- Action-Funktion ist leicht testbar und wiederverwendbar
+- Nahtlose Integration mit Server Actions (Next.js, React Server Components)`,
+        codeExamples: [
+          {
+            title: 'Form Action statt onSubmit',
+            js: `// Action-Funktion außerhalb der Komponente – kein Zugriff auf event nötig
+function signupAction(formData) {
+  const username = formData.get('username');
+  const email = formData.get('email');
+
+  console.log('Registrierung:', { username, email });
+  // hier: API-Aufruf, Validierung, Weiterleitung etc.
+}
+
+function SignupForm() {
+  return (
+    // action statt onSubmit – React kümmert sich um alles andere
+    <form action={signupAction}>
+      <input name="username" type="text" placeholder="Benutzername" required />
+      <input name="email" type="email" placeholder="E-Mail" required />
+      <button type="submit">Registrieren</button>
+    </form>
+  );
+}`,
+            ts: `// Action-Funktion außerhalb der Komponente
+function signupAction(formData: FormData): void {
+  const username = formData.get('username') as string;
+  const email = formData.get('email') as string;
+
+  console.log('Registrierung:', { username, email });
+}
+
+function SignupForm() {
+  return (
+    <form action={signupAction}>
+      <input name="username" type="text" placeholder="Benutzername" required />
+      <input name="email" type="email" placeholder="E-Mail" required />
+      <button type="submit">Registrieren</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'fva-use-action-state',
+        title: 'useActionState – Validierung & Formular-State',
+        duration: '30 Min.',
+        explanation: `**\`useActionState\`** (React 19) verbindet eine Form-Action mit einem State-Wert. Damit kann die Action Fehlermeldungen oder ein Ergebnis zurückgeben, das die Komponente direkt rendern kann.
+
+**Signatur:**
+\`\`\`
+const [state, dispatch, isPending] = useActionState(actionFn, initialState);
+\`\`\`
+- \`state\`: Aktueller Rückgabewert der letzten Action-Ausführung (z. B. Fehlerobjekt oder Erfolgsstatus).
+- \`dispatch\`: Die gewrappte Action, die als \`action\`-Prop ans Formular übergeben wird.
+- \`isPending\`: \`true\` während die Action läuft (besonders nützlich bei async Actions).
+
+**Validierungsflow:**
+1. Action prüft die Eingaben.
+2. Bei Fehler gibt sie ein Fehlerobjekt zurück – \`state\` enthält es.
+3. Bei Erfolg gibt sie \`null\` zurück (oder ein Erfolgsobjekt).
+4. Das Formular rendert Fehler basierend auf \`state\`.
+
+**Pending-State:** Das dritte Rückgabewert \`isPending\` zeigt an, ob die Action noch läuft – ideal, um Buttons zu deaktivieren oder Ladeindikatoren anzuzeigen.`,
+        codeExamples: [
+          {
+            title: 'useActionState mit Validierung',
+            js: `import { useActionState } from 'react';
+
+function validateSignup(formData) {
+  const errors = {};
+  const username = formData.get('username');
+  const email = formData.get('email');
+
+  if (!username || username.trim().length < 3) {
+    errors.username = 'Mindestens 3 Zeichen erforderlich.';
+  }
+  if (!email || !email.includes('@')) {
+    errors.email = 'Ungültige E-Mail-Adresse.';
+  }
+
+  // Bei Fehler: Fehlerobjekt zurückgeben → wird zu "state"
+  if (Object.keys(errors).length > 0) return { errors };
+
+  // Bei Erfolg: Aktion ausführen, null zurückgeben
+  console.log('Registriert:', { username, email });
+  return null;
+}
+
+function SignupForm() {
+  const [formState, formAction, isPending] = useActionState(validateSignup, null);
+
+  return (
+    <form action={formAction}>
+      <div>
+        <input name="username" type="text" placeholder="Benutzername" />
+        {formState?.errors?.username && (
+          <p style={{ color: 'red' }}>{formState.errors.username}</p>
+        )}
+      </div>
+      <div>
+        <input name="email" type="email" placeholder="E-Mail" />
+        {formState?.errors?.email && (
+          <p style={{ color: 'red' }}>{formState.errors.email}</p>
+        )}
+      </div>
+      <button type="submit" disabled={isPending}>
+        {isPending ? 'Wird gespeichert…' : 'Registrieren'}
+      </button>
+    </form>
+  );
+}`,
+            ts: `import { useActionState } from 'react';
+
+type FormErrors = { username?: string; email?: string };
+type FormState = { errors: FormErrors } | null;
+
+function validateSignup(
+  _prevState: FormState,
+  formData: FormData
+): FormState {
+  const errors: FormErrors = {};
+  const username = formData.get('username') as string;
+  const email = formData.get('email') as string;
+
+  if (!username || username.trim().length < 3) {
+    errors.username = 'Mindestens 3 Zeichen erforderlich.';
+  }
+  if (!email || !email.includes('@')) {
+    errors.email = 'Ungültige E-Mail-Adresse.';
+  }
+
+  if (Object.keys(errors).length > 0) return { errors };
+
+  console.log('Registriert:', { username, email });
+  return null;
+}
+
+function SignupForm() {
+  const [formState, formAction, isPending] = useActionState<FormState, FormData>(
+    validateSignup,
+    null
+  );
+
+  return (
+    <form action={formAction}>
+      <div>
+        <input name="username" type="text" placeholder="Benutzername" />
+        {formState?.errors?.username && (
+          <p style={{ color: 'red' }}>{formState.errors.username}</p>
+        )}
+      </div>
+      <div>
+        <input name="email" type="email" placeholder="E-Mail" />
+        {formState?.errors?.email && (
+          <p style={{ color: 'red' }}>{formState.errors.email}</p>
+        )}
+      </div>
+      <button type="submit" disabled={isPending}>
+        {isPending ? 'Wird gespeichert…' : 'Registrieren'}
+      </button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'fva-async-actions-form-status',
+        title: 'Asynchrone Actions, HTTP-Requests & useFormStatus',
+        duration: '21 Min.',
+        explanation: `Form Actions können \`async\` sein – React wartet automatisch auf das Promise und setzt \`isPending\` während dieser Zeit auf \`true\`.
+
+**Asynchrone Actions:**
+Die Action gibt ein Promise zurück. Typisches Muster: \`fetch\`-Request innerhalb der Action. Fehler aus dem Request können als State zurückgegeben werden.
+
+**\`useFormStatus\`:**
+Ein Hook, der innerhalb eines Kind-Elements des Formulars verwendet werden kann, um den Übermittlungsstatus zu lesen – **ohne** dass Props durchgereicht werden müssen.
+
+\`\`\`js
+const { pending } = useFormStatus();
+\`\`\`
+
+Wichtig: \`useFormStatus\` muss in einer **Kind-Komponente** des \`<form>\`-Elements verwendet werden, nicht in der Komponente, die das \`<form>\` rendert.
+
+**Mehrere Actions in einem Formular:**
+Einzelne \`<button>\`-Elemente können ihr eigenes \`formAction\`-Attribut haben. Damit lassen sich unterschiedliche Aktionen (z. B. „Speichern" vs. „Löschen") ohne separate Formulare umsetzen.`,
+        codeExamples: [
+          {
+            title: 'Async Action mit fetch + useFormStatus',
+            js: `import { useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+
+// Ausgelagerte async Action
+async function submitOrder(prevState, formData) {
+  const item = formData.get('item');
+
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item }),
+    });
+
+    if (!res.ok) return { error: 'Bestellung fehlgeschlagen.' };
+    return { success: true };
+  } catch {
+    return { error: 'Netzwerkfehler.' };
+  }
+}
+
+// Separater Submit-Button mit useFormStatus
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? 'Wird gesendet…' : 'Bestellen'}
+    </button>
+  );
+}
+
+function OrderForm() {
+  const [state, formAction] = useActionState(submitOrder, null);
+
+  return (
+    <form action={formAction}>
+      <input name="item" type="text" placeholder="Artikel" required />
+      {state?.error && <p style={{ color: 'red' }}>{state.error}</p>}
+      {state?.success && <p style={{ color: 'green' }}>Bestellt!</p>}
+      <SubmitButton />
+    </form>
+  );
+}`,
+            ts: `import { useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+
+type OrderState = { error?: string; success?: boolean } | null;
+
+async function submitOrder(
+  _prevState: OrderState,
+  formData: FormData
+): Promise<OrderState> {
+  const item = formData.get('item') as string;
+
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item }),
+    });
+
+    if (!res.ok) return { error: 'Bestellung fehlgeschlagen.' };
+    return { success: true };
+  } catch {
+    return { error: 'Netzwerkfehler.' };
+  }
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? 'Wird gesendet…' : 'Bestellen'}
+    </button>
+  );
+}
+
+function OrderForm() {
+  const [state, formAction] = useActionState<OrderState, FormData>(
+    submitOrder,
+    null
+  );
+
+  return (
+    <form action={formAction}>
+      <input name="item" type="text" placeholder="Artikel" required />
+      {state?.error && <p style={{ color: 'red' }}>{state.error}</p>}
+      {state?.success && <p style={{ color: 'green' }}>Bestellt!</p>}
+      <SubmitButton />
+    </form>
+  );
+}`,
+          },
+          {
+            title: 'Mehrere Actions in einem Formular (formAction an Button)',
+            js: `async function saveItem(formData) {
+  const title = formData.get('title');
+  await fetch('/api/items', { method: 'POST', body: JSON.stringify({ title }) });
+  console.log('Gespeichert');
+}
+
+async function deleteItem(formData) {
+  const id = formData.get('id');
+  await fetch('/api/items/' + id, { method: 'DELETE' });
+  console.log('Gelöscht');
+}
+
+function ItemForm({ itemId }) {
+  return (
+    <form>
+      <input name="id" type="hidden" value={itemId} />
+      <input name="title" type="text" placeholder="Titel" />
+
+      {/* Jeder Button hat seine eigene Action */}
+      <button type="submit" formAction={saveItem}>Speichern</button>
+      <button type="submit" formAction={deleteItem}>Löschen</button>
+    </form>
+  );
+}`,
+            ts: `async function saveItem(formData: FormData): Promise<void> {
+  const title = formData.get('title') as string;
+  await fetch('/api/items', { method: 'POST', body: JSON.stringify({ title }) });
+}
+
+async function deleteItem(formData: FormData): Promise<void> {
+  const id = formData.get('id') as string;
+  await fetch(\`/api/items/\${id}\`, { method: 'DELETE' });
+}
+
+function ItemForm({ itemId }: { itemId: string }) {
+  return (
+    <form>
+      <input name="id" type="hidden" value={itemId} />
+      <input name="title" type="text" placeholder="Titel" />
+
+      <button type="submit" formAction={saveItem}>Speichern</button>
+      <button type="submit" formAction={deleteItem}>Löschen</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'fva-optimistic-updates',
+        title: 'Optimistic Updating mit useOptimistic',
+        duration: '10 Min.',
+        explanation: `**Optimistic Updating** bedeutet, dass die UI sofort aktualisiert wird, als ob der Server-Request bereits erfolgreich war – noch bevor das Ergebnis tatsächlich vorliegt. Schlägt der Request fehl, wird der Zustand automatisch zurückgesetzt.
+
+**\`useOptimistic\` (React 19):**
+\`\`\`js
+const [optimisticState, addOptimistic] = useOptimistic(
+  serverState,         // echter State (z. B. aus Server-Fetch)
+  (currentState, optimisticValue) => newState  // Update-Funktion
+);
+\`\`\`
+
+- \`optimisticState\`: Zeigt während einer laufenden Action den optimistisch gesetzten Wert an.
+- \`addOptimistic(value)\`: Setzt den optimistischen Wert – wird typischerweise am Anfang der Action aufgerufen.
+- Sobald die Action abgeschlossen ist (egal ob Erfolg oder Fehler), fällt \`optimisticState\` automatisch auf \`serverState\` zurück.
+
+**Typischer Usecase:** Like-Buttons, Todo-Listen, Kommentare – alles, wo sofortiges Feedback die UX verbessert.`,
+        codeExamples: [
+          {
+            title: 'useOptimistic – sofortiges UI-Feedback',
+            js: `import { useOptimistic, useActionState } from 'react';
+
+function LikeButton({ postId, initialLikes }) {
+  const [likes, setLikes] = useActionState(
+    async (currentLikes) => {
+      // Optimistisch bereits erhöht, jetzt Server-Request
+      await fetch('/api/posts/' + postId + '/like', { method: 'POST' });
+      return currentLikes; // Server-Wert bestätigt
+    },
+    initialLikes
+  );
+
+  const [optimisticLikes, addOptimisticLike] = useOptimistic(
+    likes,
+    (currentLikes) => currentLikes + 1  // sofort hochzählen
+  );
+
+  async function handleLike(formData) {
+    addOptimisticLike(); // UI sofort aktualisieren
+    await fetch('/api/posts/' + postId + '/like', { method: 'POST' });
+  }
+
+  return (
+    <form action={handleLike}>
+      <button type="submit">👍 {optimisticLikes}</button>
+    </form>
+  );
+}`,
+            ts: `import { useOptimistic } from 'react';
+
+async function likePost(postId: string): Promise<void> {
+  await fetch(\`/api/posts/\${postId}/like\`, { method: 'POST' });
+}
+
+function LikeButton({ postId, initialLikes }: { postId: string; initialLikes: number }) {
+  const [optimisticLikes, addOptimisticLike] = useOptimistic(
+    initialLikes,
+    (currentLikes: number) => currentLikes + 1
+  );
+
+  async function handleLike(_formData: FormData): Promise<void> {
+    addOptimisticLike(undefined); // UI sofort aktualisieren
+    await likePost(postId);       // Server-Request im Hintergrund
+  }
+
+  return (
+    <form action={handleLike}>
+      <button type="submit">👍 {optimisticLikes}</button>
+    </form>
+  );
+}`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'redux',
+    title: 'Abschnitte 20–21: Redux & Advanced Redux',
+    slug: 'redux',
+    shortDescription: 'Redux von Grund auf: Kernkonzepte, React-Integration, Redux Toolkit, Async-Code mit Thunks und Redux DevTools.',
+    lessons: [
+      {
+        id: 'rx-concepts',
+        title: 'Redux – Konzepte & Vergleich mit React Context',
+        duration: '22 Min.',
+        explanation: `Redux ist eine externe Bibliothek für **zentrales State-Management**. Der gesamte App-State liegt in einem einzigen **Store** – unabhängig von der Komponentenstruktur.
+
+**Wie Redux funktioniert:**
+1. Komponenten **subscriben** den Store (lesen Daten).
+2. Komponenten dispatchen **Actions** (beschreiben, was passieren soll).
+3. Der **Reducer** – eine reine Funktion – berechnet anhand der aktuellen State und der Action den neuen State.
+4. Der Store benachrichtigt alle Subscriber → Komponenten rendern neu.
+
+\`\`\`
+Komponente → dispatch(action) → Reducer(state, action) → neuer State → Komponente
+\`\`\`
+
+**Redux vs. React Context:**
+| | React Context | Redux |
+|---|---|---|
+| Komplexität | Gering | Höher (Boilerplate) |
+| Performance | Re-rendert alle Consumer | Granular via Selector |
+| DevTools | Nein | Ja (Time-Travel) |
+| Middleware | Nein | Ja (z. B. Thunk für Async) |
+| Empfehlung | Kleiner/mittlerer State | Großer, komplexer State |
+
+React Context ist für viele Apps ausreichend. Redux lohnt sich bei großen Anwendungen mit komplexem, häufig wechselndem State, wenn Performance und DevTools wichtig sind.
+
+**Hinweis zu \`createStore\`:** Die Funktion wird im Redux-Code als "deprecated" markiert – das bedeutet aber nur, dass Redux Toolkit bevorzugt wird. \`createStore\` ist nicht wirklich deprecated und bleibt funktional.`,
+        codeExamples: [
+          {
+            title: 'Minimaler Redux Store (Vanilla)',
+            js: `import { createStore } from 'redux';
+
+// Reducer: reine Funktion – (currentState, action) → newState
+function counterReducer(state = { value: 0 }, action) {
+  if (action.type === 'counter/increment') {
+    return { value: state.value + 1 };
+  }
+  if (action.type === 'counter/decrement') {
+    return { value: state.value - 1 };
+  }
+  return state; // Unbekannte Action → State unverändert zurückgeben
+}
+
+const store = createStore(counterReducer);
+
+// Store abonnieren
+store.subscribe(() => {
+  console.log('Neuer State:', store.getState());
+});
+
+// Action dispatchen
+store.dispatch({ type: 'counter/increment' });
+// → Neuer State: { value: 1 }
+
+store.dispatch({ type: 'counter/increment' });
+// → Neuer State: { value: 2 }
+
+store.dispatch({ type: 'counter/decrement' });
+// → Neuer State: { value: 1 }`,
+            ts: `import { createStore } from 'redux';
+
+interface CounterState {
+  value: number;
+}
+
+interface CounterAction {
+  type: 'counter/increment' | 'counter/decrement';
+}
+
+function counterReducer(
+  state: CounterState = { value: 0 },
+  action: CounterAction
+): CounterState {
+  if (action.type === 'counter/increment') {
+    return { value: state.value + 1 };
+  }
+  if (action.type === 'counter/decrement') {
+    return { value: state.value - 1 };
+  }
+  return state;
+}
+
+const store = createStore(counterReducer);
+
+store.subscribe(() => {
+  console.log('Neuer State:', store.getState());
+});
+
+store.dispatch({ type: 'counter/increment' });
+store.dispatch({ type: 'counter/decrement' });`,
+          },
+        ],
+      },
+      {
+        id: 'rx-react-integration',
+        title: 'Redux in React einrichten',
+        duration: '24 Min.',
+        explanation: `Um Redux in React zu nutzen, braucht man zwei Pakete:
+- **\`redux\`**: Kernbibliothek (Store, Reducer, Actions)
+- **\`react-redux\`**: React-Bindings (Provider, Hooks)
+
+**Setup in 4 Schritten:**
+
+**1. Store erstellen** – Reducer definieren, \`createStore\` aufrufen.
+
+**2. Store bereitstellen** – Die gesamte App in \`<Provider store={store}>\` wrappen (typischerweise in \`main.tsx\`/\`index.js\`).
+
+**3. State lesen** – \`useSelector(selector)\` abonniert den Store. Ändert sich der selektierte Wert, rendert die Komponente neu.
+
+**4. Actions dispatchen** – \`useDispatch()\` gibt die \`dispatch\`-Funktion. Mit Payloads lassen sich Daten mitgeben: \`dispatch({ type: 'counter/add', amount: 5 })\`.`,
+        codeExamples: [
+          {
+            title: 'Store, Provider, useSelector & useDispatch',
+            js: `// store.js
+import { createStore } from 'redux';
+
+function counterReducer(state = { count: 0, lastAction: '' }, action) {
+  switch (action.type) {
+    case 'increment':
+      return { ...state, count: state.count + 1, lastAction: 'increment' };
+    case 'decrement':
+      return { ...state, count: state.count - 1, lastAction: 'decrement' };
+    case 'add':
+      return { ...state, count: state.count + action.amount };
+    default:
+      return state;
+  }
+}
+
+export const store = createStore(counterReducer);
+
+// main.jsx
+import { Provider } from 'react-redux';
+import { store } from './store';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
+
+// Counter.jsx
+import { useSelector, useDispatch } from 'react-redux';
+
+function Counter() {
+  const count = useSelector((state) => state.count);
+  const dispatch = useDispatch();
+
+  return (
+    <div>
+      <p>Zähler: {count}</p>
+      <button onClick={() => dispatch({ type: 'increment' })}>+1</button>
+      <button onClick={() => dispatch({ type: 'decrement' })}>-1</button>
+      {/* Payload übergeben: */}
+      <button onClick={() => dispatch({ type: 'add', amount: 10 })}>+10</button>
+    </div>
+  );
+}`,
+            ts: `// store.ts
+import { createStore } from 'redux';
+
+interface CounterState {
+  count: number;
+  lastAction: string;
+}
+
+type CounterAction =
+  | { type: 'increment' }
+  | { type: 'decrement' }
+  | { type: 'add'; amount: number };
+
+function counterReducer(
+  state: CounterState = { count: 0, lastAction: '' },
+  action: CounterAction
+): CounterState {
+  switch (action.type) {
+    case 'increment':
+      return { ...state, count: state.count + 1, lastAction: 'increment' };
+    case 'decrement':
+      return { ...state, count: state.count - 1, lastAction: 'decrement' };
+    case 'add':
+      return { ...state, count: state.count + action.amount };
+    default:
+      return state;
+  }
+}
+
+export const store = createStore(counterReducer);
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+
+// Counter.tsx
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from './store';
+
+function Counter() {
+  const count = useSelector((state: RootState) => state.count);
+  const dispatch = useDispatch<AppDispatch>();
+
+  return (
+    <div>
+      <p>Zähler: {count}</p>
+      <button onClick={() => dispatch({ type: 'increment' })}>+1</button>
+      <button onClick={() => dispatch({ type: 'decrement' })}>-1</button>
+      <button onClick={() => dispatch({ type: 'add', amount: 10 })}>+10</button>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rx-state-correctly',
+        title: 'Redux State korrekt verwalten',
+        duration: '11 Min.',
+        explanation: `**Immutabilität** ist die wichtigste Regel im Reducer: Man darf den bestehenden State **niemals direkt verändern**. Stattdessen gibt man immer ein neues Objekt zurück.
+
+**Warum?**
+Redux erkennt Änderungen per Referenzvergleich (\`===\`). Wenn du das vorhandene Objekt mutiertst, bleibt die Referenz dieselbe – Redux denkt, nichts hat sich geändert → keine Re-Renders.
+
+**Multiple State Properties:**
+Bei mehreren Werten packt man alles in ein State-Objekt. Der Spread-Operator \`{ ...state, changedField: newValue }\` stellt sicher, dass alle anderen Felder unverändert erhalten bleiben.`,
+        codeExamples: [
+          {
+            title: 'Immutable Updates & mehrere State-Felder',
+            js: `function authReducer(
+  state = { isLoggedIn: false, username: '' },
+  action
+) {
+  switch (action.type) {
+    case 'login':
+      // ✅ Neues Objekt – nie state.isLoggedIn = true !
+      return { ...state, isLoggedIn: true, username: action.username };
+
+    case 'logout':
+      return { ...state, isLoggedIn: false, username: '' };
+
+    case 'updateUsername':
+      // Nur eine Eigenschaft ändern, den Rest beibehalten
+      return { ...state, username: action.username };
+
+    default:
+      return state;
+  }
+}
+
+// ❌ Falsch – State direkt mutieren:
+function badReducer(state = { count: 0 }, action) {
+  if (action.type === 'increment') {
+    state.count++;   // ← Mutation! Redux erkennt die Änderung nicht.
+    return state;
+  }
+  return state;
+}
+
+// ✅ Richtig:
+function goodReducer(state = { count: 0 }, action) {
+  if (action.type === 'increment') {
+    return { ...state, count: state.count + 1 }; // ← Neues Objekt
+  }
+  return state;
+}`,
+            ts: `interface AuthState {
+  isLoggedIn: boolean;
+  username: string;
+}
+
+type AuthAction =
+  | { type: 'login'; username: string }
+  | { type: 'logout' }
+  | { type: 'updateUsername'; username: string };
+
+function authReducer(
+  state: AuthState = { isLoggedIn: false, username: '' },
+  action: AuthAction
+): AuthState {
+  switch (action.type) {
+    case 'login':
+      return { ...state, isLoggedIn: true, username: action.username };
+    case 'logout':
+      return { ...state, isLoggedIn: false, username: '' };
+    case 'updateUsername':
+      return { ...state, username: action.username };
+    default:
+      return state;
+  }
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rx-class-components',
+        title: 'Redux mit Class-Komponenten (historisch)',
+        duration: '10 Min.',
+        explanation: `Vor React Hooks (vor React 16.8) war der einzige Weg, Redux in Komponenten zu nutzen, der \`connect()\` **Higher Order Component** aus \`react-redux\`.
+
+**Heute ist das kaum noch relevant** – \`useSelector\` und \`useDispatch\` sind einfacher und kürzer. Dennoch begegnet man \`connect()\` in älterem Code.
+
+**Wie \`connect()\` funktioniert:**
+- \`mapStateToProps\`: Definiert, welche Store-Werte als Props übergeben werden.
+- \`mapDispatchToProps\`: Definiert, welche Dispatch-Funktionen als Props übergeben werden.
+- \`connect(mstp, mdtp)(Component)\` gibt eine neue Komponente zurück, die die Props automatisch erhält.`,
+        codeExamples: [
+          {
+            title: 'connect() HOC (klassischer Ansatz)',
+            js: `import { Component } from 'react';
+import { connect } from 'react-redux';
+
+class Counter extends Component {
+  render() {
+    return (
+      <div>
+        <p>Zähler: {this.props.count}</p>
+        <button onClick={this.props.onIncrement}>+1</button>
+        <button onClick={this.props.onDecrement}>-1</button>
+      </div>
+    );
+  }
+}
+
+// Welche State-Werte sollen als Props reinkommen?
+function mapStateToProps(state) {
+  return { count: state.count };
+}
+
+// Welche Dispatch-Calls sollen als Props reinkommen?
+function mapDispatchToProps(dispatch) {
+  return {
+    onIncrement: () => dispatch({ type: 'increment' }),
+    onDecrement: () => dispatch({ type: 'decrement' }),
+  };
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Counter);
+
+// Moderner Äquivalent mit Hooks (empfohlen):
+// function Counter() {
+//   const count = useSelector(state => state.count);
+//   const dispatch = useDispatch();
+//   ...
+// }`,
+            ts: `import { Component } from 'react';
+import { connect } from 'react-redux';
+import type { RootState, AppDispatch } from './store';
+
+interface OwnProps {}
+interface StateProps { count: number }
+interface DispatchProps {
+  onIncrement: () => void;
+  onDecrement: () => void;
+}
+
+type Props = OwnProps & StateProps & DispatchProps;
+
+class Counter extends Component<Props> {
+  render() {
+    return (
+      <div>
+        <p>Zähler: {this.props.count}</p>
+        <button onClick={this.props.onIncrement}>+1</button>
+        <button onClick={this.props.onDecrement}>-1</button>
+      </div>
+    );
+  }
+}
+
+function mapStateToProps(state: RootState): StateProps {
+  return { count: state.count };
+}
+
+function mapDispatchToProps(dispatch: AppDispatch): DispatchProps {
+  return {
+    onIncrement: () => dispatch({ type: 'increment' }),
+    onDecrement: () => dispatch({ type: 'decrement' }),
+  };
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Counter);`,
+          },
+        ],
+      },
+      {
+        id: 'rx-toolkit',
+        title: 'Redux Toolkit (RTK)',
+        duration: '41 Min.',
+        explanation: `**Redux Toolkit (RTK)** ist die offizielle, empfohlene Methode, Redux zu schreiben. Es reduziert den Boilerplate drastisch und löst die häufigsten Redux-Probleme:
+
+- Kein manuelles Schreiben von Action-Type-Strings und Action Creators
+- **Immutable Updates** via [Immer.js](https://immerjs.github.io/immer/) – man *kann* State direkt mutieren, RTK wandelt es intern in immutable Updates um
+- \`configureStore\` richtet Redux DevTools und Middleware automatisch ein
+
+---
+
+**\`createSlice\`** fasst Reducer + Actions in einem zusammen:
+\`\`\`js
+const counterSlice = createSlice({
+  name: 'counter',           // Präfix für Action-Types
+  initialState: { value: 0 },
+  reducers: {
+    increment(state) { state.value++ },      // ✅ Mutation erlaubt (Immer!)
+    add(state, action) { state.value += action.payload },
+  }
+});
+
+export const { increment, add } = counterSlice.actions;
+export default counterSlice.reducer;
+\`\`\`
+
+**\`configureStore\`** kombiniert mehrere Slices:
+\`\`\`js
+const store = configureStore({
+  reducer: {
+    counter: counterSlice.reducer,
+    auth: authSlice.reducer,
+  }
+});
+\`\`\`
+
+**Code aufteilen:** Jeder Slice kommt in eine eigene Datei (z. B. \`store/counterSlice.ts\`). Der Store importiert nur noch die Reducer.`,
+        codeExamples: [
+          {
+            title: 'Vollständiges RTK-Setup mit mehreren Slices',
+            js: `// store/counterSlice.js
+import { createSlice } from '@reduxjs/toolkit';
+
+const counterSlice = createSlice({
+  name: 'counter',
+  initialState: { value: 0, showCounter: true },
+  reducers: {
+    increment(state) {
+      state.value++;           // ✅ Direkte Mutation – Immer macht's immutable
+    },
+    decrement(state) {
+      state.value--;
+    },
+    increase(state, action) {
+      state.value += action.payload; // payload = übergebener Wert
+    },
+    toggleCounter(state) {
+      state.showCounter = !state.showCounter;
+    },
+  },
+});
+
+export const { increment, decrement, increase, toggleCounter } = counterSlice.actions;
+export default counterSlice.reducer;
+
+// store/authSlice.js
+import { createSlice } from '@reduxjs/toolkit';
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: { isAuthenticated: false },
+  reducers: {
+    login(state) { state.isAuthenticated = true; },
+    logout(state) { state.isAuthenticated = false; },
+  },
+});
+
+export const { login, logout } = authSlice.actions;
+export default authSlice.reducer;
+
+// store/index.js
+import { configureStore } from '@reduxjs/toolkit';
+import counterReducer from './counterSlice';
+import authReducer from './authSlice';
+
+const store = configureStore({
+  reducer: {
+    counter: counterReducer,
+    auth: authReducer,
+  },
+});
+
+export default store;
+
+// Counter.jsx – liest aus counter-Slice
+import { useSelector, useDispatch } from 'react-redux';
+import { increment, decrement, increase, toggleCounter } from '../store/counterSlice';
+
+function Counter() {
+  const count = useSelector((state) => state.counter.value);
+  const show = useSelector((state) => state.counter.showCounter);
+  const dispatch = useDispatch();
+
+  return show ? (
+    <div>
+      <p>Zähler: {count}</p>
+      <button onClick={() => dispatch(increment())}>+1</button>
+      <button onClick={() => dispatch(decrement())}>-1</button>
+      <button onClick={() => dispatch(increase(5))}>+5</button>
+      <button onClick={() => dispatch(toggleCounter())}>Verstecken</button>
+    </div>
+  ) : <button onClick={() => dispatch(toggleCounter())}>Anzeigen</button>;
+}
+
+// Auth.jsx – liest aus auth-Slice
+import { login, logout } from '../store/authSlice';
+
+function Auth() {
+  const isAuth = useSelector((state) => state.auth.isAuthenticated);
+  const dispatch = useDispatch();
+
+  return isAuth
+    ? <button onClick={() => dispatch(logout())}>Abmelden</button>
+    : <button onClick={() => dispatch(login())}>Anmelden</button>;
+}`,
+            ts: `// store/counterSlice.ts
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+
+interface CounterState {
+  value: number;
+  showCounter: boolean;
+}
+
+const initialState: CounterState = { value: 0, showCounter: true };
+
+const counterSlice = createSlice({
+  name: 'counter',
+  initialState,
+  reducers: {
+    increment(state) { state.value++; },
+    decrement(state) { state.value--; },
+    increase(state, action: PayloadAction<number>) {
+      state.value += action.payload;
+    },
+    toggleCounter(state) {
+      state.showCounter = !state.showCounter;
+    },
+  },
+});
+
+export const { increment, decrement, increase, toggleCounter } = counterSlice.actions;
+export default counterSlice.reducer;
+
+// store/authSlice.ts
+import { createSlice } from '@reduxjs/toolkit';
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState: { isAuthenticated: false },
+  reducers: {
+    login(state) { state.isAuthenticated = true; },
+    logout(state) { state.isAuthenticated = false; },
+  },
+});
+
+export const { login, logout } = authSlice.actions;
+export default authSlice.reducer;
+
+// store/index.ts
+import { configureStore } from '@reduxjs/toolkit';
+import counterReducer from './counterSlice';
+import authReducer from './authSlice';
+
+export const store = configureStore({
+  reducer: {
+    counter: counterReducer,
+    auth: authReducer,
+  },
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+
+// Counter.tsx
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from '../store';
+import { increment, decrement, increase, toggleCounter } from '../store/counterSlice';
+
+function Counter() {
+  const count = useSelector((state: RootState) => state.counter.value);
+  const show = useSelector((state: RootState) => state.counter.showCounter);
+  const dispatch = useDispatch<AppDispatch>();
+
+  if (!show) {
+    return <button onClick={() => dispatch(toggleCounter())}>Anzeigen</button>;
+  }
+
+  return (
+    <div>
+      <p>Zähler: {count}</p>
+      <button onClick={() => dispatch(increment())}>+1</button>
+      <button onClick={() => dispatch(decrement())}>-1</button>
+      <button onClick={() => dispatch(increase(5))}>+5</button>
+      <button onClick={() => dispatch(toggleCounter())}>Verstecken</button>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'arx-side-effects',
+        title: 'Redux & Async Code – das Kernproblem',
+        duration: '13 Min.',
+        explanation: `**Reducer müssen reine Funktionen sein** – das ist eine Grundregel von Redux. Das bedeutet:
+- Kein asynchroner Code (kein \`fetch\`, kein \`setTimeout\`)
+- Keine Side Effects (keine Konsolen-Ausgaben, keine HTTP-Requests)
+- Bei gleicher Eingabe immer die gleiche Ausgabe
+
+**Warum?** Redux muss State-Änderungen reproduzierbar und testbar machen. Async-Code verletzt das.
+
+**Wo gehört Async-Logik dann hin?**
+
+Es gibt zwei Möglichkeiten:
+1. **In der Komponente** mit \`useEffect\` – einfach, aber can zu "fettem" Komponentencode führen
+2. **In einem Thunk** – eine Funktion, die \`dispatch\` bekommt und async arbeiten kann, bevor sie Actions dispatcht
+
+**Frontend vs. Backend:**
+Was in den Reducer darf – und was nicht:
+| Darf in den Reducer | Darf NICHT in den Reducer |
+|---|---|
+| State-Transformationen | HTTP-Requests |
+| Berechnungen aus bestehenden Daten | localStorage schreiben |
+| Array-/Objekt-Operationen | Logging, Analytics |
+| Hilfsfunktionen aufrufen | Timer, Subscriptions |`,
+        codeExamples: [
+          {
+            title: 'Side Effect in der Komponente (useEffect-Muster)',
+            js: `// ✅ Ansatz 1: Side Effect in der Komponente
+// Der Reducer bleibt rein – die Komponente kümmert sich um HTTP.
+
+import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { cartActions } from '../store/cartSlice';
+
+function App() {
+  const cart = useSelector((state) => state.cart);
+  const dispatch = useDispatch();
+  const isChanged = useSelector((state) => state.cart.changed);
+
+  // Daten beim Start laden
+  useEffect(() => {
+    fetch('https://meine-api.com/cart.json')
+      .then((res) => res.json())
+      .then((data) => {
+        dispatch(cartActions.replaceCart(data));
+      });
+  }, []); // Einmalig beim Mounten
+
+  // Cart bei jeder Änderung speichern
+  // Problem: löst auch beim ersten Render aus → isChanged-Flag nötig
+  useEffect(() => {
+    if (!isChanged) return; // Initialer Render überspringen
+
+    fetch('https://meine-api.com/cart.json', {
+      method: 'PUT',
+      body: JSON.stringify(cart),
+    });
+  }, [cart, isChanged]);
+
+  return <div>...</div>;
+}`,
+            ts: `import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from '../store';
+import { cartActions } from '../store/cartSlice';
+
+function App() {
+  const cart = useSelector((state: RootState) => state.cart);
+  const isChanged = useSelector((state: RootState) => state.cart.changed);
+  const dispatch = useDispatch<AppDispatch>();
+
+  useEffect(() => {
+    fetch('https://meine-api.com/cart.json')
+      .then((res) => res.json())
+      .then((data) => dispatch(cartActions.replaceCart(data)));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!isChanged) return;
+
+    fetch('https://meine-api.com/cart.json', {
+      method: 'PUT',
+      body: JSON.stringify(cart),
+    });
+  }, [cart, isChanged]);
+
+  return <div>...</div>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'arx-thunks',
+        title: 'Action Creator Thunks',
+        duration: '26 Min.',
+        explanation: `Ein **Thunk** ist eine Funktion, die anstelle eines normalen Action-Objekts dispatcht wird. Sie erhält \`dispatch\` (und \`getState\`) und kann damit async arbeiten, bevor sie echte Actions dispatcht.
+
+**Warum Thunks?**
+Der useEffect-Ansatz funktioniert, aber er "fettet" die Komponente auf. Mit Thunks wandert die Logik in den Store – die Komponente dispatcht nur \`dispatch(fetchCart())\` und ist fertig.
+
+**Thunk mit RTK (\`createAsyncThunk\`):**
+RTK bietet \`createAsyncThunk\` für typische Async-Flows mit automatischen \`pending\`/\`fulfilled\`/\`rejected\`-Actions.
+
+**Manueller Thunk:**
+Ein manueller Thunk ist eine Funktion, die eine Funktion zurückgibt – kein spezieller API-Call nötig.`,
+        codeExamples: [
+          {
+            title: 'Manueller Thunk & createAsyncThunk',
+            js: `// ── Manueller Thunk ──────────────────────────────────────────
+// store/cartSlice.js
+import { createSlice } from '@reduxjs/toolkit';
+
+const cartSlice = createSlice({
+  name: 'cart',
+  initialState: { items: [], changed: false, status: 'idle' },
+  reducers: {
+    replaceCart(state, action) { state.items = action.payload; },
+    setStatus(state, action) { state.status = action.payload; },
+  },
+});
+
+export const cartActions = cartSlice.actions;
+
+// Thunk: gibt eine Funktion zurück, die dispatch bekommt
+export function sendCartData(cart) {
+  return async (dispatch) => {
+    dispatch(cartActions.setStatus('sending'));
+
+    try {
+      await fetch('https://meine-api.com/cart.json', {
+        method: 'PUT',
+        body: JSON.stringify(cart),
+      });
+      dispatch(cartActions.setStatus('success'));
+    } catch (error) {
+      dispatch(cartActions.setStatus('error'));
+    }
+  };
+}
+
+export function fetchCartData() {
+  return async (dispatch) => {
+    try {
+      const res = await fetch('https://meine-api.com/cart.json');
+      const data = await res.json();
+      dispatch(cartActions.replaceCart(data ?? []));
+    } catch {
+      dispatch(cartActions.setStatus('error'));
+    }
+  };
+}
+
+export default cartSlice.reducer;
+
+// App.jsx – schlanke Komponente
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { sendCartData, fetchCartData } from '../store/cartSlice';
+
+function App() {
+  const dispatch = useDispatch();
+  const cart = useSelector((state) => state.cart);
+  const isChanged = useSelector((state) => state.cart.changed);
+
+  useEffect(() => {
+    dispatch(fetchCartData()); // Thunk dispatchen
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!isChanged) return;
+    dispatch(sendCartData(cart)); // Thunk mit Daten
+  }, [cart, isChanged, dispatch]);
+
+  return <div>...</div>;
+}
+
+// ── createAsyncThunk (RTK-Variante) ──────────────────────────
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+
+export const fetchCart = createAsyncThunk('cart/fetch', async () => {
+  const res = await fetch('https://meine-api.com/cart.json');
+  return await res.json(); // wird als action.payload weitergegeben
+});
+
+const cartSlice2 = createSlice({
+  name: 'cart',
+  initialState: { items: [], status: 'idle' },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchCart.pending, (state) => { state.status = 'loading'; })
+      .addCase(fetchCart.fulfilled, (state, action) => {
+        state.items = action.payload;
+        state.status = 'idle';
+      })
+      .addCase(fetchCart.rejected, (state) => { state.status = 'error'; });
+  },
+});`,
+            ts: `// store/cartSlice.ts
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import type { AppDispatch, RootState } from './index';
+
+interface CartItem { id: string; name: string; quantity: number }
+interface CartState { items: CartItem[]; changed: boolean; status: 'idle' | 'loading' | 'sending' | 'error' }
+
+const initialState: CartState = { items: [], changed: false, status: 'idle' };
+
+const cartSlice = createSlice({
+  name: 'cart',
+  initialState,
+  reducers: {
+    replaceCart(state, action: PayloadAction<CartItem[]>) {
+      state.items = action.payload;
+    },
+    setStatus(state, action: PayloadAction<CartState['status']>) {
+      state.status = action.payload;
+    },
+  },
+});
+
+export const cartActions = cartSlice.actions;
+
+// Manueller Thunk
+export function sendCartData(cart: CartState) {
+  return async (dispatch: AppDispatch) => {
+    dispatch(cartActions.setStatus('sending'));
+    try {
+      await fetch('https://meine-api.com/cart.json', {
+        method: 'PUT',
+        body: JSON.stringify(cart),
+      });
+      dispatch(cartActions.setStatus('idle'));
+    } catch {
+      dispatch(cartActions.setStatus('error'));
+    }
+  };
+}
+
+export function fetchCartData() {
+  return async (dispatch: AppDispatch) => {
+    try {
+      const res = await fetch('https://meine-api.com/cart.json');
+      const data: CartItem[] = await res.json();
+      dispatch(cartActions.replaceCart(data ?? []));
+    } catch {
+      dispatch(cartActions.setStatus('error'));
+    }
+  };
+}
+
+// createAsyncThunk-Variante
+export const fetchCart = createAsyncThunk<CartItem[]>('cart/fetch', async () => {
+  const res = await fetch('https://meine-api.com/cart.json');
+  return await res.json();
+});
+
+export default cartSlice.reducer;`,
+          },
+        ],
+      },
+      {
+        id: 'arx-http-feedback',
+        title: 'HTTP-Zustände & Feedback in Redux',
+        duration: '13 Min.',
+        explanation: `Bei HTTP-Requests braucht man typischerweise drei Zustände im Store:
+- **loading** – Anfrage läuft, Spinner anzeigen
+- **success/idle** – Anfrage fertig
+- **error** – Fehler, Meldung anzeigen
+
+Diese Zustände gehören in den Slice neben den eigentlichen Daten. Komponenten lesen sie per \`useSelector\` aus und rendern entsprechendes Feedback.
+
+**Muster:**
+\`\`\`
+status: 'idle' | 'loading' | 'success' | 'error'
+error: string | null
+\`\`\`
+
+Mit \`createAsyncThunk\` kommen \`pending\`/\`fulfilled\`/\`rejected\`-Cases automatisch – man muss nur die \`extraReducers\` befüllen.`,
+        codeExamples: [
+          {
+            title: 'Loading & Error State mit Feedback-UI',
+            js: `// store/postsSlice.js
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+
+export const fetchPosts = createAsyncThunk('posts/fetch', async () => {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts?_limit=5');
+  if (!res.ok) throw new Error('Laden fehlgeschlagen');
+  return await res.json();
+});
+
+const postsSlice = createSlice({
+  name: 'posts',
+  initialState: { items: [], status: 'idle', error: null },
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchPosts.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchPosts.fulfilled, (state, action) => {
+        state.status = 'idle';
+        state.items = action.payload;
+      })
+      .addCase(fetchPosts.rejected, (state, action) => {
+        state.status = 'error';
+        state.error = action.error.message;
+      });
+  },
+});
+
+export default postsSlice.reducer;
+
+// PostsList.jsx
+import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchPosts } from '../store/postsSlice';
+
+function PostsList() {
+  const dispatch = useDispatch();
+  const { items, status, error } = useSelector((state) => state.posts);
+
+  useEffect(() => {
+    dispatch(fetchPosts());
+  }, [dispatch]);
+
+  if (status === 'loading') return <p>Lädt...</p>;
+  if (status === 'error') return <p style={{ color: 'red' }}>Fehler: {error}</p>;
+
+  return (
+    <ul>
+      {items.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  );
+}`,
+            ts: `// store/postsSlice.ts
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+
+interface Post { id: number; title: string; body: string }
+interface PostsState { items: Post[]; status: 'idle' | 'loading' | 'error'; error: string | null }
+
+export const fetchPosts = createAsyncThunk<Post[]>('posts/fetch', async () => {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts?_limit=5');
+  if (!res.ok) throw new Error('Laden fehlgeschlagen');
+  return await res.json();
+});
+
+const postsSlice = createSlice({
+  name: 'posts',
+  initialState: { items: [], status: 'idle', error: null } as PostsState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchPosts.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchPosts.fulfilled, (state, action: PayloadAction<Post[]>) => {
+        state.status = 'idle';
+        state.items = action.payload;
+      })
+      .addCase(fetchPosts.rejected, (state, action) => {
+        state.status = 'error';
+        state.error = action.error.message ?? 'Unbekannter Fehler';
+      });
+  },
+});
+
+export default postsSlice.reducer;
+
+// PostsList.tsx
+import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from '../store';
+import { fetchPosts } from '../store/postsSlice';
+
+function PostsList() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { items, status, error } = useSelector((state: RootState) => state.posts);
+
+  useEffect(() => {
+    dispatch(fetchPosts());
+  }, [dispatch]);
+
+  if (status === 'loading') return <p>Lädt...</p>;
+  if (status === 'error') return <p style={{ color: 'red' }}>Fehler: {error}</p>;
+
+  return (
+    <ul>
+      {items.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'arx-devtools',
+        title: 'Redux DevTools',
+        duration: '6 Min.',
+        explanation: `Die **Redux DevTools** sind eine Browser-Erweiterung (Chrome/Firefox), die einen tiefen Einblick in den Store geben:
+
+- **Action-Log**: Jede dispatche Action mit Typ und Payload
+- **State-Diff**: Was hat sich durch die Action verändert?
+- **Time-Travel**: Springe zu einem früheren State zurück
+- **State-Export/Import**: State für Bugreports exportieren und reproduzieren
+
+Mit **Redux Toolkit + \`configureStore\`** sind die DevTools automatisch aktiviert (im Development-Modus). Man muss nichts konfigurieren.
+
+**Installation:**
+- [Redux DevTools für Chrome](https://chrome.google.com/webstore/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd)
+- [Redux DevTools für Firefox](https://addons.mozilla.org/de/firefox/addon/reduxdevtools/)
+
+**Nützliche Features im Alltag:**
+\`\`\`
+Aktionen pausieren → "Pause Recording"
+Bestimmte Aktion rückgängig → "Skip" neben der Action
+State zu bestimmtem Zeitpunkt → Slider in "Slider" Tab
+\`\`\``,
+        codeExamples: [
+          {
+            title: 'DevTools sind mit configureStore automatisch aktiv',
+            js: `// RTK: configureStore aktiviert DevTools automatisch
+import { configureStore } from '@reduxjs/toolkit';
+import counterReducer from './counterSlice';
+
+const store = configureStore({
+  reducer: { counter: counterReducer },
+  // devTools: true ist der Default in Development
+  // In Production werden sie automatisch deaktiviert
+});
+
+export default store;
+
+// Ohne RTK (manuell):
+import { createStore, compose } from 'redux';
+
+const composeEnhancers =
+  window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
+
+const store2 = createStore(
+  myReducer,
+  composeEnhancers()
+);`,
+            ts: `import { configureStore } from '@reduxjs/toolkit';
+import counterReducer from './counterSlice';
+import postsReducer from './postsSlice';
+
+// ✅ DevTools automatisch aktiv – nichts weiter nötig
+export const store = configureStore({
+  reducer: {
+    counter: counterReducer,
+    posts: postsReducer,
+  },
+  // Optionale manuelle Konfiguration:
+  // devTools: process.env.NODE_ENV !== 'production',
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;`,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'react-router',
+    title: 'Abschnitt 22: React Router – Multi-Page SPA',
+    slug: 'react-router',
+    shortDescription: 'Client-seitiges Routing mit React Router v6/v7: Routen definieren, navigieren, Layouts, Daten laden und senden.',
+    lessons: [
+      {
+        id: 'rr-basics',
+        title: 'Routing-Grundlagen & Setup',
+        duration: '19 Min.',
+        explanation: `**Was ist Client-seitiges Routing?**
+In einer klassischen Multi-Page-App lädt der Browser bei jedem Klick eine neue HTML-Seite vom Server. In einer **Single-Page Application (SPA)** passiert der Seitenwechsel im Browser – kein Neuladen, keine weiße Seite, kein Verbindungsaufbau. React Router übernimmt die URL-Verwaltung und rendert die passenden Komponenten.
+
+**Installation:**
+\`\`\`bash
+pnpm add react-router-dom
+\`\`\`
+
+**Routen definieren** – es gibt zwei gleichwertige Muster:
+
+**1. JSX-Syntax** (übersichtlich, weit verbreitet):
+\`\`\`jsx
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route path="/" element={<Root />}>
+      <Route index element={<Home />} />
+      <Route path="about" element={<About />} />
+    </Route>
+  )
+);
+\`\`\`
+
+**2. Objekt-Syntax** (empfohlen, API-nah):
+\`\`\`js
+const router = createBrowserRouter([
+  { path: '/', element: <Root />, children: [
+    { index: true, element: <Home /> },
+    { path: 'about', element: <About /> },
+  ]},
+]);
+\`\`\`
+
+Beide Syntaxen sind funktional identisch – wähle eine und bleib dabei.`,
+        codeExamples: [
+          {
+            title: 'Router einrichten & Provider mounten',
+            js: `// main.jsx
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import Root from './pages/Root';
+import Home from './pages/Home';
+import About from './pages/About';
+import Error from './pages/Error';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Root />,
+    errorElement: <Error />,  // Fehler-Seite für diesen Ast
+    children: [
+      { index: true, element: <Home /> },   // / ohne Unterseite
+      { path: 'about', element: <About /> },
+    ],
+  },
+]);
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <RouterProvider router={router} />
+);`,
+            ts: `// main.tsx
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import Root from './pages/Root';
+import Home from './pages/Home';
+import About from './pages/About';
+import Error from './pages/Error';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Root />,
+    errorElement: <Error />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: 'about', element: <About /> },
+    ],
+  },
+]);
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <RouterProvider router={router} />
+);`,
+          },
+        ],
+      },
+      {
+        id: 'rr-navigation',
+        title: 'Navigation: Link, NavLink & useNavigate',
+        duration: '30 Min.',
+        explanation: `**Kein \`<a href>\`!** Normale Anker-Tags lösen einen echten Seitenaufruf aus. React Router stellt stattdessen drei Werkzeuge bereit:
+
+**1. \`<Link to="...">\`** – deklarative Navigation ohne Neuladen.
+
+**2. \`<NavLink to="...">\`** – wie \`Link\`, aber bekommt automatisch eine \`active\`-Klasse, wenn die Route aktiv ist. Ideal für Navigationsleisten. Die \`className\`-Prop kann auch eine Funktion sein, die \`{ isActive }\` erhält.
+
+**3. \`useNavigate()\`** – programmatische Navigation aus Event-Handlern oder Effekten heraus (z. B. nach erfolgreichem Login).
+
+---
+
+**Relative vs. Absolute Pfade:**
+- **Absolut** (beginnt mit \`/\`): geht immer von der Root-URL aus. \`to="/about"\` → \`/about\`
+- **Relativ** (ohne \`/\`): wird relativ zur aktuellen Route aufgelöst. Innerhalb \`/products/123\` führt \`to="edit"\` zu \`/products/123/edit\`
+- \`to=".."\` geht eine Ebene hoch (in der Routen-Hierarchie, nicht in der URL-Hierarchie – Unterschied beachten!)
+
+**Index Routes** (\`index: true\`) sind die Default-Child-Route – sie rendert, wenn der Eltern-Pfad exakt übereinstimmt, aber keine Child-Route aktiv ist.`,
+        codeExamples: [
+          {
+            title: 'Link, NavLink, useNavigate & dynamische Routen',
+            js: `// router (in main.jsx)
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Root />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: 'products', element: <Products /> },
+      { path: 'products/:productId', element: <ProductDetail /> },
+    ],
+  },
+]);
+
+// Root.jsx – Layout mit Navigation
+import { Link, NavLink, Outlet } from 'react-router-dom';
+
+function Root() {
+  return (
+    <>
+      <nav>
+        {/* NavLink: active-Klasse automatisch */}
+        <NavLink
+          to="/"
+          className={({ isActive }) => isActive ? 'active' : ''}
+          end  // ← nur exakt "/" – sonst wäre "/" immer aktiv
+        >
+          Home
+        </NavLink>
+        <NavLink
+          to="/products"
+          className={({ isActive }) => isActive ? 'active' : ''}
+        >
+          Produkte
+        </NavLink>
+      </nav>
+
+      <main>
+        <Outlet /> {/* ← hier rendert die Child-Route */}
+      </main>
+    </>
+  );
+}
+
+// Products.jsx – Links auf dynamische Routen
+import { Link } from 'react-router-dom';
+
+function Products() {
+  const products = [
+    { id: 'p1', name: 'Produkt A' },
+    { id: 'p2', name: 'Produkt B' },
+  ];
+  return (
+    <ul>
+      {products.map((p) => (
+        <li key={p.id}>
+          <Link to={p.id}>{p.name}</Link>
+          {/* Relativ → /products/p1, /products/p2 */}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ProductDetail.jsx – URL-Parameter lesen
+import { useParams } from 'react-router-dom';
+
+function ProductDetail() {
+  const { productId } = useParams();
+  return <p>Produkt-ID: {productId}</p>;
+}
+
+// Programmatisch navigieren
+import { useNavigate } from 'react-router-dom';
+
+function LoginForm() {
+  const navigate = useNavigate();
+
+  function handleLogin() {
+    // ... Login-Logik
+    navigate('/dashboard');         // vorwärts
+    // navigate(-1);                // zurück (wie Browser-Zurück)
+    // navigate('/login', { replace: true }); // History ersetzen
+  }
+
+  return <button onClick={handleLogin}>Anmelden</button>;
+}`,
+            ts: `import { Link, NavLink, Outlet, useParams, useNavigate } from 'react-router-dom';
+
+// Root.tsx – Layout
+function Root() {
+  return (
+    <>
+      <nav>
+        <NavLink
+          to="/"
+          className={({ isActive }: { isActive: boolean }) =>
+            isActive ? 'active' : ''
+          }
+          end
+        >
+          Home
+        </NavLink>
+        <NavLink
+          to="/products"
+          className={({ isActive }: { isActive: boolean }) =>
+            isActive ? 'active' : ''
+          }
+        >
+          Produkte
+        </NavLink>
+      </nav>
+      <main>
+        <Outlet />
+      </main>
+    </>
+  );
+}
+
+// ProductDetail.tsx
+function ProductDetail() {
+  const { productId } = useParams<{ productId: string }>();
+  return <p>Produkt-ID: {productId}</p>;
+}
+
+// Programmatische Navigation
+function LoginForm() {
+  const navigate = useNavigate();
+
+  function handleLogin(): void {
+    navigate('/dashboard');
+    // navigate(-1);
+    // navigate('/login', { replace: true });
+  }
+
+  return <button onClick={handleLogin}>Anmelden</button>;
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rr-layouts-errors',
+        title: 'Layouts, Nested Routes & Fehlerseiten',
+        duration: '12 Min.',
+        explanation: `**Layouts** in React Router werden über Nested Routes gebaut. Eine Route ohne eigene Seite dient als "Hülle" – sie rendert Navigationsleiste, Header etc. und zeigt über \`<Outlet />\` an, wo die Child-Route erscheinen soll.
+
+**Nested Routes** erlauben beliebig tiefe Hierarchien. Jedes Layout rendert einen \`<Outlet />\`, der von der aktiven Child-Route befüllt wird.
+
+**\`errorElement\`** – React Router fängt unbehandelte Fehler (Exceptions im Loader/Action, 404 usw.) ab und rendert stattdessen das \`errorElement\` der nächstnäheren Route. Mit \`useRouteError()\` lässt sich der Fehler auslesen.
+
+**Error-Hierarchie:** Fehler steigen die Routen-Hierarchie hoch, bis sie ein \`errorElement\` finden. Setze es auf Root-Ebene als Fallback, und ggf. granularer auf Unter-Routen.`,
+        codeExamples: [
+          {
+            title: 'Nested Layout & errorElement',
+            js: `// router
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,   // Layout-Wrapper
+    errorElement: <ErrorPage />, // Fängt alle Fehler in diesem Ast
+    children: [
+      { index: true, element: <Home /> },
+      {
+        path: 'products',
+        element: <ProductsLayout />,  // weiteres Layout
+        children: [
+          { index: true, element: <ProductList /> },
+          { path: ':id', element: <ProductDetail /> },
+        ],
+      },
+    ],
+  },
+]);
+
+// RootLayout.jsx
+import { Outlet } from 'react-router-dom';
+
+function RootLayout() {
+  return (
+    <>
+      <MainNav />        {/* immer sichtbar */}
+      <main>
+        <Outlet />       {/* ← aktive Child-Route */}
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+// ErrorPage.jsx
+import { useRouteError } from 'react-router-dom';
+
+function ErrorPage() {
+  const error = useRouteError();
+
+  // error kann ein Response-Objekt oder ein Error sein
+  const status = error?.status;
+  const message = error?.data?.message || error?.message || 'Unbekannter Fehler';
+
+  return (
+    <div>
+      <h1>{status === 404 ? 'Seite nicht gefunden' : 'Fehler'}</h1>
+      <p>{message}</p>
+    </div>
+  );
+}`,
+            ts: `import { Outlet, useRouteError } from 'react-router-dom';
+
+// RootLayout.tsx
+function RootLayout() {
+  return (
+    <>
+      <MainNav />
+      <main>
+        <Outlet />
+      </main>
+    </>
+  );
+}
+
+// ErrorPage.tsx
+function ErrorPage() {
+  const error = useRouteError() as {
+    status?: number;
+    data?: { message?: string };
+    message?: string;
+  };
+
+  const status = error?.status;
+  const message = error?.data?.message ?? error?.message ?? 'Unbekannter Fehler';
+
+  return (
+    <div>
+      <h1>{status === 404 ? 'Seite nicht gefunden' : 'Fehler'}</h1>
+      <p>{message}</p>
+    </div>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rr-loader',
+        title: 'Daten laden mit loader()',
+        duration: '47 Min.',
+        explanation: `React Router bietet mit **\`loader\`** einen eingebauten Mechanismus, Daten **vor** dem Rendern einer Route zu laden – ähnlich wie \`useEffect\` + Fetch, aber direkter in die Router-Konfiguration integriert.
+
+**Wie es funktioniert:**
+1. Man definiert eine \`loader\`-Funktion direkt bei der Route.
+2. React Router führt sie aus, **bevor** die Route-Komponente gerendert wird.
+3. Die Komponente liest die Daten mit \`useLoaderData()\`.
+
+**Vorteile gegenüber useEffect:**
+- Kein Loading-State nötig – die Komponente rendert erst, wenn Daten da sind
+- Zentrale Fehlerbehandlung per \`errorElement\`
+- Navigation-Loading-Zustand per \`useNavigation()\`
+
+**Wo den Loader-Code platzieren?**  
+Konvention: Der Loader wird in der **gleichen Datei** wie die Seiten-Komponente definiert und von dort exportiert – die Router-Konfiguration importiert ihn dann.
+
+**Was darf in einen Loader?**
+Alles, was Daten liest: fetch, localStorage, DB-Anfragen (in einem Node-Backend). Was **nicht** rein darf: State-Updates, Side Effects mit Auswirkungen außerhalb der Anfrage.`,
+        codeExamples: [
+          {
+            title: 'loader(), useLoaderData & useNavigation',
+            js: `// pages/Products.jsx
+import { useLoaderData, useNavigation } from 'react-router-dom';
+
+// ① Loader-Funktion – wird vor dem Rendern ausgeführt
+export async function loader() {
+  const res = await fetch('https://fakestoreapi.com/products');
+  if (!res.ok) {
+    // Fehler als Response werfen → errorElement fängt ihn ab
+    throw new Response('Produkte konnten nicht geladen werden', { status: 500 });
+  }
+  return res.json(); // direkt returnen – kein state nötig
+  // Alternativ: return json(data) aus react-router-dom (veraltet ab v7)
+}
+
+// ② Komponente liest die Daten
+function Products() {
+  const products = useLoaderData();
+
+  return (
+    <ul>
+      {products.map((p) => (
+        <li key={p.id}>{p.title}</li>
+      ))}
+    </ul>
+  );
+}
+
+export default Products;
+
+// pages/ProductDetail.jsx – dynamischer Loader
+export async function loader({ params }) {
+  const res = await fetch(\`https://fakestoreapi.com/products/\${params.productId}\`);
+  if (!res.ok) throw new Response('Nicht gefunden', { status: 404 });
+  return res.json();
+}
+
+function ProductDetail() {
+  const product = useLoaderData();
+  return (
+    <div>
+      <h1>{product.title}</h1>
+      <p>{product.description}</p>
+    </div>
+  );
+}
+
+// router (main.jsx)
+import Products, { loader as productsLoader } from './pages/Products';
+import ProductDetail, { loader as productDetailLoader } from './pages/ProductDetail';
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Root />,
+    children: [
+      {
+        path: 'products',
+        element: <Products />,
+        loader: productsLoader,       // ← hier eintragen
+        children: [
+          {
+            path: ':productId',
+            element: <ProductDetail />,
+            loader: productDetailLoader,
+          },
+        ],
+      },
+    ],
+  },
+]);
+
+// Navigation-Zustand – Lade-Feedback im Layout
+function Root() {
+  const navigation = useNavigation();
+  // navigation.state: 'idle' | 'loading' | 'submitting'
+
+  return (
+    <>
+      {navigation.state === 'loading' && <div className="progress-bar" />}
+      <Outlet />
+    </>
+  );
+}
+
+// Daten aus einem übergeordneten Loader lesen
+// Wenn ProductDetail auch Daten von Products braucht:
+import { useRouteLoaderData } from 'react-router-dom';
+
+function ProductDetail() {
+  // ID muss mit der route id übereinstimmen
+  const allProducts = useRouteLoaderData('products-route');
+  const thisProduct = useLoaderData();
+  // ...
+}`,
+            ts: `// pages/Products.tsx
+import { useLoaderData, useNavigation, type LoaderFunctionArgs } from 'react-router-dom';
+
+interface Product { id: number; title: string; description: string }
+
+export async function loader(): Promise<Product[]> {
+  const res = await fetch('https://fakestoreapi.com/products');
+  if (!res.ok) throw new Response('Laden fehlgeschlagen', { status: 500 });
+  return res.json();
+}
+
+function Products() {
+  const products = useLoaderData() as Product[];
+
+  return (
+    <ul>
+      {products.map((p) => (
+        <li key={p.id}>{p.title}</li>
+      ))}
+    </ul>
+  );
+}
+
+export default Products;
+
+// pages/ProductDetail.tsx – dynamischer Loader
+export async function loader({ params }: LoaderFunctionArgs): Promise<Product> {
+  const res = await fetch(\`https://fakestoreapi.com/products/\${params.productId}\`);
+  if (!res.ok) throw new Response('Nicht gefunden', { status: 404 });
+  return res.json();
+}
+
+function ProductDetail() {
+  const product = useLoaderData() as Product;
+  return <h1>{product.title}</h1>;
+}
+
+// Root.tsx – Navigation-Zustand
+import { Outlet, useNavigation } from 'react-router-dom';
+
+function Root() {
+  const navigation = useNavigation();
+
+  return (
+    <>
+      {navigation.state === 'loading' && <div className="progress-bar" />}
+      <Outlet />
+    </>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rr-actions',
+        title: 'Daten senden mit action()',
+        duration: '42 Min.',
+        explanation: `Für **Daten-Mutationen** (Formulare absenden, POST/PUT/DELETE-Requests) bietet React Router die **\`action\`**-Funktion – das Gegenstück zum Loader.
+
+**Wie es funktioniert:**
+1. \`<Form method="post">\` (aus \`react-router-dom\`) schickt das Formular an die \`action\`-Funktion der aktuellen Route.
+2. Die \`action\`-Funktion erhält \`{ request, params }\` und kann die Daten verarbeiten.
+3. Nach dem Action-Aufruf revalidiert React Router automatisch alle Loader der aktuellen Seite.
+
+**useNavigation()** zeigt den Submission-Zustand: \`navigation.state === 'submitting'\` → Button deaktivieren, Spinner zeigen.
+
+**useActionData()** liest Rückgabewerte der Action (z. B. Validierungsfehler) in der Komponente.
+
+**Programmatisch senden mit \`useSubmit()\`:**
+Wenn man kein \`<Form>\` nutzen will (z. B. bei automatischem Submit nach einer Aktion).
+
+**Routen wiederverwenden mit verschiedenen HTTP-Methoden:**
+Eine Route kann GET (Loader), POST, PUT und DELETE in einer Action abhandeln – \`request.method\` unterscheidet sie.
+
+**\`useFetcher()\`** – Loader/Actions aufrufen, **ohne** die aktuelle Route zu verlassen. Ideal für "Like"-Buttons, Newsletter-Anmeldungen oder Prefetching, die nicht navigieren sollen.`,
+        codeExamples: [
+          {
+            title: 'action(), Form, useActionData & useFetcher',
+            js: `// pages/NewProduct.jsx
+import { Form, useActionData, useNavigation, redirect } from 'react-router-dom';
+
+// Action-Funktion – verarbeitet das Formular
+export async function action({ request }) {
+  const formData = await request.formData();
+  const data = Object.fromEntries(formData);
+
+  // Validierung
+  const errors = {};
+  if (!data.name || data.name.trim().length < 2) {
+    errors.name = 'Name muss mindestens 2 Zeichen haben.';
+  }
+  if (Object.keys(errors).length > 0) {
+    return errors; // Fehler zurückgeben → useActionData()
+  }
+
+  // HTTP-Request
+  const res = await fetch('https://api.example.com/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Response('Fehler beim Speichern', { status: 500 });
+
+  return redirect('/products'); // ← nach Erfolg weiterleiten
+}
+
+function NewProduct() {
+  const errors = useActionData();        // Validierungsfehler aus Action
+  const navigation = useNavigation();   // Submission-Zustand
+  const isSubmitting = navigation.state === 'submitting';
+
+  return (
+    // Form aus react-router-dom – schickt an die action dieser Route
+    <Form method="post">
+      <label>
+        Name
+        <input type="text" name="name" />
+        {errors?.name && <span className="error">{errors.name}</span>}
+      </label>
+      <label>
+        Preis
+        <input type="number" name="price" step="0.01" />
+      </label>
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Speichert...' : 'Speichern'}
+      </button>
+    </Form>
+  );
+}
+
+export default NewProduct;
+
+// Eine Action für mehrere Methoden (DELETE + POST)
+export async function action({ request, params }) {
+  if (request.method === 'DELETE') {
+    await fetch(\`/api/products/\${params.id}\`, { method: 'DELETE' });
+    return redirect('/products');
+  }
+  // POST ...
+}
+
+// useFetcher – Action aufrufen ohne zu navigieren
+import { useFetcher } from 'react-router-dom';
+
+function NewsletterSignup() {
+  const fetcher = useFetcher();
+  const isSubmitting = fetcher.state === 'submitting';
+  const data = fetcher.data; // Antwort der Action
+
+  return (
+    <fetcher.Form method="post" action="/newsletter">
+      <input type="email" name="email" placeholder="E-Mail" />
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? '...' : 'Anmelden'}
+      </button>
+      {data?.message && <p>{data.message}</p>}
+    </fetcher.Form>
+  );
+}`,
+            ts: `// pages/NewProduct.tsx
+import { Form, useActionData, useNavigation, redirect } from 'react-router-dom';
+import type { ActionFunctionArgs } from 'react-router-dom';
+
+interface ActionErrors { name?: string; price?: string }
+
+export async function action({ request }: ActionFunctionArgs): Promise<ActionErrors | Response> {
+  const formData = await request.formData();
+  const name = formData.get('name') as string;
+  const price = formData.get('price') as string;
+
+  const errors: ActionErrors = {};
+  if (!name || name.trim().length < 2) {
+    errors.name = 'Name muss mindestens 2 Zeichen haben.';
+  }
+  if (Object.keys(errors).length > 0) return errors;
+
+  const res = await fetch('https://api.example.com/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, price }),
+  });
+  if (!res.ok) throw new Response('Fehler beim Speichern', { status: 500 });
+
+  return redirect('/products');
+}
+
+function NewProduct() {
+  const errors = useActionData() as ActionErrors | undefined;
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === 'submitting';
+
+  return (
+    <Form method="post">
+      <label>
+        Name
+        <input type="text" name="name" />
+        {errors?.name && <span className="error">{errors.name}</span>}
+      </label>
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Speichert...' : 'Speichern'}
+      </button>
+    </Form>
+  );
+}
+
+export default NewProduct;
+
+// useFetcher
+import { useFetcher } from 'react-router-dom';
+
+interface FetcherData { message?: string }
+
+function NewsletterSignup() {
+  const fetcher = useFetcher<FetcherData>();
+  const isSubmitting = fetcher.state === 'submitting';
+
+  return (
+    <fetcher.Form method="post" action="/newsletter">
+      <input type="email" name="email" placeholder="E-Mail" />
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? '...' : 'Anmelden'}
+      </button>
+      {fetcher.data?.message && <p>{fetcher.data.message}</p>}
+    </fetcher.Form>
+  );
+}`,
+          },
+        ],
+      },
+      {
+        id: 'rr-defer',
+        title: 'Deferred Loading mit defer() & Await',
+        duration: '16 Min.',
+        explanation: `Standardmäßig wartet React Router, bis **alle** Loader-Promises aufgelöst sind, bevor die Route gerendert wird. Bei langsamen Requests blockiert das die Navigation.
+
+**\`defer()\`** löst dieses Problem: Man gibt Promises zurück, ohne \`await\`. React Router navigiert sofort und rendert den fertigen Teil – der Rest wird nachgeladen und per \`<Await>\` eingeblendet, sobald er bereit ist.
+
+**Bausteine:**
+- **\`defer({ key: promise })\`** – gibt ein oder mehrere Promises zurück
+- **\`<Suspense fallback={...}>\`** – Platzhalter während des Ladens
+- **\`<Await resolve={promise}>\`** – rendert wenn Promise aufgelöst
+
+**Hinweis zu React Router v7:** \`defer()\` und \`json()\` werden in v7 offiziell als deprecated markiert und sollen ersetzt werden durch direkte Promise-Rückgaben + \`React.use()\`. Für v6-Projekte ist \`defer()\` aber der Standardweg.`,
+        codeExamples: [
+          {
+            title: 'defer(), Suspense & Await',
+            js: `// pages/Blog.jsx
+import { Suspense } from 'react';
+import { defer, useLoaderData, Await } from 'react-router-dom';
+
+async function fetchPosts() {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts?_limit=10');
+  return res.json();
+}
+
+async function fetchFeatured() {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts/1');
+  return res.json();
+}
+
+// ① defer: featured wird awaited (schnell), posts nicht (langsam)
+export function loader() {
+  return defer({
+    posts: fetchPosts(),           // Promise – nicht awaited → sofort zurück
+    featured: fetchFeatured(),     // ebenfalls defered
+  });
+}
+
+function Blog() {
+  const { posts, featured } = useLoaderData();
+
+  return (
+    <div>
+      <h1>Blog</h1>
+
+      {/* ② Suspense + Await für jeden deferreds Wert */}
+      <Suspense fallback={<p>Featured lädt...</p>}>
+        <Await resolve={featured}>
+          {(post) => <h2>Heute: {post.title}</h2>}
+        </Await>
+      </Suspense>
+
+      <Suspense fallback={<p>Artikel werden geladen...</p>}>
+        <Await resolve={posts}>
+          {(posts) => (
+            <ul>
+              {posts.map((p) => (
+                <li key={p.id}>{p.title}</li>
+              ))}
+            </ul>
+          )}
+        </Await>
+      </Suspense>
+    </div>
+  );
+}
+
+export default Blog;`,
+            ts: `// pages/Blog.tsx
+import { Suspense } from 'react';
+import { defer, useLoaderData, Await } from 'react-router-dom';
+
+interface Post { id: number; title: string }
+
+async function fetchPosts(): Promise<Post[]> {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts?_limit=10');
+  return res.json();
+}
+
+async function fetchFeatured(): Promise<Post> {
+  const res = await fetch('https://jsonplaceholder.typicode.com/posts/1');
+  return res.json();
+}
+
+// loader gibt defer zurück – keine await-Verzögerung
+export function loader() {
+  return defer({
+    posts: fetchPosts(),
+    featured: fetchFeatured(),
+  });
+}
+
+function Blog() {
+  const { posts, featured } = useLoaderData() as {
+    posts: Promise<Post[]>;
+    featured: Promise<Post>;
+  };
+
+  return (
+    <div>
+      <Suspense fallback={<p>Featured lädt...</p>}>
+        <Await resolve={featured}>
+          {(post: Post) => <h2>Heute: {post.title}</h2>}
+        </Await>
+      </Suspense>
+
+      <Suspense fallback={<p>Artikel werden geladen...</p>}>
+        <Await resolve={posts}>
+          {(posts: Post[]) => (
+            <ul>
+              {posts.map((p) => (
+                <li key={p.id}>{p.title}</li>
+              ))}
+            </ul>
+          )}
+        </Await>
+      </Suspense>
+    </div>
+  );
+}
+
+export default Blog;`,
           },
         ],
       },
