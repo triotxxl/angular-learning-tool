@@ -1166,7 +1166,7 @@ const mitSpread: number[] = [...zahlen, 6, 7];`,
   },
   {
     id: 'react-essentials',
-    title: 'Abschnitte 3–4: React Essentials',
+    title: 'Abschnitt 3: React Essentials',
     slug: 'react-essentials',
     shortDescription: 'Components, JSX, Props, State, Events und fortgeschrittene Patterns: Komposition, Lifting State, Immutability und flexible Komponenten-Architektur.',
     lessons: [
@@ -3107,7 +3107,7 @@ function ConceptList(): JSX.Element {
   },
   {
     id: 'styling-react',
-    title: 'Abschnitt 6: Styling React Components',
+    title: 'Abschnitt 4: Styling React Components',
     slug: 'styling-react',
     shortDescription: 'Alle Wege, React-Komponenten zu stylen: Vanilla CSS, CSS Modules, Styled Components und Tailwind CSS.',
     lessons: [
@@ -3758,7 +3758,7 @@ function Button4({ children }: { children: React.ReactNode }) {
   },
   {
     id: 'debugging-react',
-    title: 'Abschnitt 7: Debugging React Apps',
+    title: 'Abschnitt 5: Debugging React Apps',
     slug: 'debugging-react',
     shortDescription: 'Fehlermeldungen verstehen, Browser-Debugger nutzen, React Strict Mode und React DevTools.',
     lessons: [
@@ -4037,7 +4037,7 @@ function Counter(): JSX.Element {
   },
   {
     id: 'refs-portals',
-    title: 'Abschnitt 8: Working with Refs & Portals',
+    title: 'Abschnitt 6: Working with Refs & Portals',
     slug: 'refs-portals',
     shortDescription: 'useRef für DOM-Zugriff und Werte, Refs forwarden, useImperativeHandle, Modale und Portals.',
     lessons: [
@@ -4668,7 +4668,7 @@ function App(): JSX.Element {
   },
   {
     id: 'context-reducer',
-    title: 'Abschnitt 10: React\'s Context API & useReducer',
+    title: 'Abschnitt 7: React\'s Context API & useReducer',
     slug: 'context-reducer',
     shortDescription: 'Prop Drilling lösen mit Context API und State-Logik strukturieren mit useReducer.',
     lessons: [
@@ -5168,7 +5168,7 @@ export function useCart(): CartContextType {
   },
   {
     id: 'use-effect',
-    title: 'Abschnitt 11: Handling Side Effects & useEffect',
+    title: 'Abschnitt 8: Handling Side Effects & useEffect',
     slug: 'use-effect',
     shortDescription: 'Side Effects verstehen, useEffect richtig einsetzen, Cleanup-Funktionen und useCallback.',
     lessons: [
@@ -5711,7 +5711,7 @@ function BatchExample(): JSX.Element {
   },
   {
     id: 'working-with-forms',
-    title: 'Abschnitt 17: Working with Forms & User Input',
+    title: 'Abschnitt 9: Working with Forms & User Input',
     slug: 'working-with-forms',
     shortDescription: 'Formulare in React: Eingaben erfassen, validieren und wiederverwendbare Form-Komponenten & Hooks bauen.',
     lessons: [
@@ -6349,7 +6349,7 @@ function SignupForm() {
 
   {
     id: 'forms-via-actions',
-    title: 'Abschnitt 18: Handling Forms via Form Actions',
+    title: 'Abschnitt 10: Handling Forms via Form Actions',
     slug: 'forms-via-actions',
     shortDescription: 'React 19 Form Actions: Formulare deklarativ mit action-Prop, useActionState, useFormStatus und Optimistic Updating verwalten.',
     lessons: [
@@ -6782,7 +6782,7 @@ function LikeButton({ postId, initialLikes }: { postId: string; initialLikes: nu
   },
   {
     id: 'redux',
-    title: 'Abschnitte 20–21: Redux & Advanced Redux',
+    title: 'Abschnitt 11: Redux & Advanced Redux',
     slug: 'redux',
     shortDescription: 'Redux von Grund auf: Kernkonzepte, React-Integration, Redux Toolkit, Async-Code mit Thunks und Redux DevTools.',
     lessons: [
@@ -7851,7 +7851,7 @@ export type AppDispatch = typeof store.dispatch;`,
   },
   {
     id: 'react-router',
-    title: 'Abschnitt 22: React Router – Multi-Page SPA',
+    title: 'Abschnitt 12: React Router – Multi-Page SPA',
     slug: 'react-router',
     shortDescription: 'Client-seitiges Routing mit React Router v6/v7: Routen definieren, navigieren, Layouts, Daten laden und senden.',
     lessons: [
@@ -8682,7 +8682,7 @@ export default Blog;`,
   },
   {
     id: 'authentication',
-    title: 'Abschnitt 23: Authentication in React Apps',
+    title: 'Abschnitt 13: Authentication in React Apps',
     slug: 'authentication',
     shortDescription: 'Token-basierte Authentifizierung mit React Router: Login/Logout, geschützte Routen, Token-Verwaltung und automatisches Ablaufen.',
     lessons: [
@@ -9144,7 +9144,7 @@ export function useAutoLogout(): void {
   },
   {
     id: 'deployment',
-    title: 'Abschnitt 24: Deploying React Apps',
+    title: 'Abschnitt 14: Deploying React Apps',
     slug: 'deployment',
     shortDescription: 'React-Apps für die Produktion bauen, Lazy Loading einsetzen und auf einem Hosting-Dienst deployen.',
     lessons: [
@@ -9359,7 +9359,7 @@ export default defineConfig({
   },
   {
     id: 'tanstack-query',
-    title: 'Abschnitt 25: React Query / Tanstack Query',
+    title: 'Abschnitt 15: React Query / Tanstack Query',
     slug: 'tanstack-query',
     shortDescription: 'HTTP-Requests elegant verwalten: Caching, Mutations, Invalidierung und Optimistic Updating mit @tanstack/react-query.',
     lessons: [
@@ -10132,7 +10132,7 @@ function PostsPage() {
   },
   {
     id: 'nextjs-intro',
-    title: 'Abschnitt 26: Next.js – A Pretty Deep Dive',
+    title: 'Abschnitt 16: Next.js – A Pretty Deep Dive',
     slug: 'nextjs-intro',
     shortDescription: 'Next.js von Grund auf: App Router, Server Components, Server Actions, Pages Router, SSG/SSR und Datenbankanbindung.',
     lessons: [
