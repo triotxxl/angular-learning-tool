@@ -2,6 +2,161 @@ import type { Chapter } from '../types/glossary'
 
 export const chapters: Chapter[] = [
   {
+    id: 'tools-setup',
+    title: 'Abschnitt 1: Tools & Entwicklungsumgebung',
+    slug: 'tools-setup',
+    shortDescription: 'VS Code, Node.js, pnpm und React+Vite einrichten – alles was du zum Starten brauchst.',
+    lessons: [
+      {
+        id: 'ts-01',
+        title: 'VS Code installieren & einrichten',
+        duration: '5 Min.',
+        explanation: `**Visual Studio Code** (VS Code) ist der beliebteste Code-Editor für Web-Entwicklung – kostenlos, schnell und durch Extensions erweiterbar.
+
+**Installation**
+Lade VS Code von der offiziellen Seite herunter und installiere es:
+\`\`\`
+https://code.visualstudio.com/
+\`\`\`
+
+**Empfohlene Extensions**
+Öffne die Extension-Suche mit \`Strg+Shift+X\` und installiere:
+- **ESLint** – zeigt Code-Fehler direkt im Editor
+- **Prettier – Code formatter** – formatiert deinen Code automatisch
+- **ES7+ React/Redux/... Snippets** – praktische Kürzel für React
+- **TypeScript Error Translator** – übersetzt TypeScript-Fehler ins Deutsche
+
+**Nützliche Tastenkürzel**
+- \`Strg+P\` – Datei schnell öffnen
+- \`Strg+Shift+P\` – Befehlspalette öffnen
+- \`Strg+\`\` – integriertes Terminal öffnen
+- \`Alt+Shift+F\` – aktuellen Code formatieren
+- \`F2\` – Symbol umbenennen (alle Vorkommen)
+- \`Strg+D\` – nächstes gleiche Wort markieren`,
+      },
+      {
+        id: 'ts-02',
+        title: 'Node.js installieren',
+        duration: '5 Min.',
+        explanation: `**Node.js** ist die JavaScript-Laufzeitumgebung, die du brauchst, um JavaScript außerhalb des Browsers auszuführen – und die Grundlage für alle modernen Build-Tools wie Vite.
+
+**Installation via nvm (empfohlen)**
+Mit dem **Node Version Manager (nvm)** kannst du mehrere Node-Versionen verwalten:
+
+Für Windows: https://github.com/coreybutler/nvm-windows/releases
+
+Nach der Installation:
+\`\`\`bash
+nvm install lts        # aktuellste LTS-Version installieren
+nvm use lts            # aktivieren
+\`\`\`
+
+**Installation direkt**
+Alternativ lade das Installer-Paket von der offiziellen Seite:
+\`\`\`
+https://nodejs.org/
+\`\`\`
+Wähle die **LTS-Version** (Long Term Support) – stabiler für Projekte.
+
+**Installation prüfen**
+\`\`\`bash
+node --version     # z. B. v22.14.0
+npm --version      # z. B. 10.9.2
+\`\`\`
+
+**Wichtig:** Node.js bringt \`npm\` mit – wir ersetzen es aber durch \`pnpm\` (schneller, sparsamer).`,
+      },
+      {
+        id: 'ts-03',
+        title: 'pnpm als Paketmanager',
+        duration: '4 Min.',
+        explanation: `**pnpm** ist ein moderner Paketmanager, der schneller und speicherschonender als \`npm\` oder \`yarn\` ist. Pakete werden zentral gespeichert und per Hardlink in Projekte eingebunden – kein doppelter Download.
+
+**Installation**
+\`\`\`bash
+npm install -g pnpm
+\`\`\`
+
+**Installation prüfen**
+\`\`\`bash
+pnpm --version     # z. B. 10.7.0
+\`\`\`
+
+**Die wichtigsten Befehle im Vergleich**
+- \`pnpm install\` – Abhängigkeiten installieren (wie \`npm install\`)
+- \`pnpm add react\` – Paket hinzufügen
+- \`pnpm add -D vite\` – Dev-Dependency hinzufügen
+- \`pnpm remove react\` – Paket entfernen
+- \`pnpm run dev\` – Skript aus package.json starten
+- \`pnpm dlx create-vite\` – Paket einmalig ausführen (wie \`npx\`)
+
+**pnpm-workspace** erlaubt außerdem Monorepo-Setups mit mehreren Paketen in einem Repository – ideal für größere Projekte.`,
+      },
+      {
+        id: 'ts-04',
+        title: 'React-Projekt mit Vite erstellen',
+        duration: '6 Min.',
+        explanation: `**Vite** ist ein blitzschnelles Build-Tool für moderne Web-Apps. Es startet sofort (kein langsames Bündeln beim Start) und bietet Hot Module Replacement (HMR) – Änderungen sind im Browser sofort sichtbar.
+
+**Projekt anlegen**
+\`\`\`bash
+pnpm create vite mein-projekt --template react-ts
+cd mein-projekt
+pnpm install
+pnpm run dev
+\`\`\`
+
+Verfügbare Templates: \`react\`, \`react-ts\`, \`vue\`, \`vue-ts\`, \`vanilla\`, u. a.
+
+**Projektstruktur**
+- \`index.html\` – Einstiegspunkt der App
+- \`src/main.tsx\` – Root-Datei, mounted die React-App
+- \`src/App.tsx\` – Haupt-Komponente
+- \`vite.config.ts\` – Vite-Konfiguration
+- \`tsconfig.json\` – TypeScript-Konfiguration
+
+**Wichtige Skripte in package.json**
+- \`pnpm run dev\` – Entwicklungsserver starten (http://localhost:5173)
+- \`pnpm run build\` – Produktions-Build erstellen (Ausgabe: dist/)
+- \`pnpm run preview\` – Build lokal vorschauen
+- \`pnpm run lint\` – ESLint-Prüfung ausführen`,
+      },
+      {
+        id: 'ts-05',
+        title: 'TypeScript im Projekt',
+        duration: '5 Min.',
+        explanation: `**TypeScript** ist eine typisierte Erweiterung von JavaScript. Es fängt viele Fehler bereits beim Schreiben ab, statt erst zur Laufzeit.
+
+**Warum TypeScript?**
+- Fehler werden im Editor angezeigt (kein "undefined is not a function" mehr)
+- Autovervollständigung ist präziser
+- Code ist selbstdokumentierend durch Typen
+- Pflichtstandard in professionellen React-Projekten
+
+**Grundkonfiguration: tsconfig.json**
+Vite legt die Konfiguration automatisch an. Die wichtigsten Optionen:
+\`\`\`json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "strict": true,          // alle strikten Checks aktivieren
+    "jsx": "react-jsx",      // JSX-Transform für React 17+
+    "moduleResolution": "bundler"
+  }
+}
+\`\`\`
+
+**Dateierweiterungen**
+- \`.ts\` – TypeScript ohne JSX
+- \`.tsx\` – TypeScript mit JSX (React-Komponenten)
+- \`.js\` / \`.jsx\` – weiterhin erlaubt im Projekt
+
+**TypeScript kompiliert nicht selbst** – Vite nutzt \`esbuild\` zum Transpilieren (sehr schnell). TypeScript prüft aber die Typen. Führe \`pnpm run build\` aus, um beide zusammen zu testen.`,
+      },
+    ],
+  },
+  {
     id: 'javascript-refresher',
     title: 'Abschnitt 2: JavaScript Refresher',
     slug: 'javascript-refresher',

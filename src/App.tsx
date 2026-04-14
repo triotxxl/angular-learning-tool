@@ -70,6 +70,7 @@ function App() {
                         onClick={(e) => {
                           e.preventDefault();
                           setActiveLessonId(lesson.id);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
                       >
                         {lesson.title}
